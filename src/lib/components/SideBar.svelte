@@ -14,12 +14,11 @@
         { id: 'hitos', name: 'Avances & Cronograma', icon: 'bi-calendar-check',  href: '/hitos'},
         { id: 'entregas', name: 'Entregas & Documentos', icon: 'bi-folder2-open',  href: '/entregas' },
         { id: 'retro', name: 'Retroalimentaciones & Jurados', icon: 'bi-chat-left-text',  href: '/retroalimentaciones' },
-        { id: 'calendario', name: 'Calendario Académico', icon: 'bi-calendar3',  href: '#' },
-        { id: 'notificaciones', name: 'Notificaciones', icon: 'bi-bell', badge: '3',  href: '#' }
+        { id: 'notificaciones', name: 'Notificaciones', icon: 'bi-bell', badge: '3',  href:'#' }
     ];
 
-    const menuRecursos = [
-        { id: 'guias', name: 'Guías y Normativas APA', icon: 'bi-book',  href: '#' },
+    const menuProfesores = [
+        { id: 'evaluaciones', name: 'evaluaciones', icon: 'bi-book',  href: '/evaluaciones' },
         { id: 'soporte', name: 'Mesa de Ayuda TI', icon: 'bi-headset' ,  href: '#'}
     ];
 </script>
@@ -76,12 +75,13 @@
 
         <!-- Sección Recursos & Ayuda -->
         <div>
-            <span class="extra-small text-muted fw-bold text-uppercase px-2 mb-2 d-block">Recursos & Ayuda</span>
+            <span class="extra-small text-muted fw-bold text-uppercase px-2 mb-2 d-block">Evaluaciones de los docentes y jurados</span>
             <ul class="nav nav-pills flex-column gap-1">
-                {#each menuRecursos as item}
+                {#each menuProfesores as item}
                     <li class="nav-item">
-                        <button
-                            class="nav-link w-100 text-start d-flex align-items-center justify-content-between px-3 py-2 small fw-medium rounded-3 {rutaActiva === item.id ? 'active bg-primary text-white' : 'text-secondary btn-hover'}"
+                        <a
+                            href="{item.href}"
+                            class="nav-link w-100 text-start d-flex align-items-center justify-content-between px-3 py-2 small fw-medium rounded-3 {page.url.pathname === item.href ? 'active bg-primary text-white' : 'text-secondary btn-hover'}"
                             onclick={() => {
                                 rutaActiva = item.id;
                                 cerrarSidebar();
@@ -91,14 +91,13 @@
                                 <i class="bi {item.icon} fs-6"></i>
                                 <span>{item.name}</span>
                             </div>
-                        </button>
+                        </a>
                     </li>
                 {/each}
             </ul>
         </div>
     </div>
 
-    <!-- Pie del Sidebar (fijo, fuera del área con scroll) -->
     <div class="border-top pt-3 d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
             <div class="bg-primary-subtle text-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
@@ -119,7 +118,6 @@
     .sidebar-container {
         width: 260px;
         flex-shrink: 0;
-        /* Garantiza altura fija a la pantalla y soporte para scroll si la pantalla es muy baja */
         position: sticky;
         top: 0;
         height: 100vh;
@@ -131,7 +129,6 @@
         overflow-x: hidden;
     }
 
-    /* Opcional: que la barra de scroll se vea más discreta */
     .sidebar-scroll::-webkit-scrollbar {
         width: 6px;
     }

@@ -30,7 +30,6 @@
 			</button>
 		</div>
 
-		<!-- 1. Ruta Metodológica / Stepper de 5 Fases -->
 		<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4 mb-4">
 			<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-4">
 				<div>
@@ -42,7 +41,6 @@
 				</span>
 			</div>
 
-			<!-- Grid responsive de 5 columnas en PC y apilado en móvil -->
 			<div class="row g-3 text-center">
 				{#each fases as fase}
 					<div class="col-12 col-sm-6 col-lg-2-4">
@@ -84,7 +82,6 @@
 			</div>
 		</div>
 
-		<!-- 2. Tabla General de Hitos -->
 		<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4">
 			<h3 class="h6 fw-bold text-dark mb-3 d-flex align-items-center gap-2">
 				<i class="bi bi-list-check text-primary fs-5"></i> Registro General de Avances

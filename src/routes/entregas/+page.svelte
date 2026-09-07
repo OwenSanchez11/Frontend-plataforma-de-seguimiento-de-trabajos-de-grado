@@ -1,6 +1,5 @@
 <script>
 
-	// Datos mock de los documentos entregados
 	const documentos = [
 		{
 			id: 1,
@@ -41,7 +40,6 @@
 <div class="d-flex bg-light min-vh-100">
 
 	<main class="flex-grow-1 p-3 p-md-4 overflow-x-hidden">
-		<!-- Encabezado de la pantalla -->
 		<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 mb-4">
 			<div>
 				<span class="extra-small text-muted fw-bold text-uppercase">Gestión de Archivos</span>
@@ -52,7 +50,6 @@
 			</button>
 		</div>
 
-		<!-- 1. Zona de Arrastre de Archivos / Drag & Drop -->
 		<div class="card border-2 border-dashed border-primary-subtle bg-white shadow-sm rounded-4 p-4 text-center mb-4">
 			<div class="d-flex flex-column align-items-center justify-content-center py-3">
 				<div class="bg-primary-subtle text-primary rounded-circle p-3 mb-3 d-flex align-items-center justify-content-center" style="width: 56px; height: 56px;">
@@ -66,7 +63,6 @@
 			</div>
 		</div>
 
-		<!-- 2. Tabla / Historial de Documentos Cargados -->
 		<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4">
 			<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-4">
 				<div>
@@ -136,7 +132,6 @@
 		font-size: 0.72rem;
 	}
 
-	/* Borde punteado para la zona de Drag and Drop */
 	.border-dashed {
 		border-style: dashed !important;
 	}

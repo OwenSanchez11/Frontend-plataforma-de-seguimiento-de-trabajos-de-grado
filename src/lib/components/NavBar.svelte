@@ -17,7 +17,7 @@
 
   <div class="container-fluid d-flex align-items-center justify-content-between p-0">
 
-    <!-- 1. ZONA IZQUIERDA -->
+    <!-- izquierda-->
     <a href="/" class="d-flex align-items-center text-decoration-none me-4" aria-label="Inicio">
       <div class="bg-primary text-white rounded-2 d-flex align-items-center justify-content-center me-2 p-2" style="width: 32px; height: 32px;">
         <i class="bi bi-box-seam-fill fs-6"></i>
@@ -28,7 +28,7 @@
       </div>
     </a>
 
-    <!-- 2. ZONA CENTRAL (solo desktop) -->
+    <!-- 2.  central (solo desktop) -->
     <div class="d-none d-lg-flex align-items-center gap-4">
       {#each navLinks as link}
         <a href={link.href} class="nav-link-custom text-secondary text-decoration-none small fw-medium transition-colors">
@@ -37,7 +37,7 @@
       {/each}
     </div>
 
-    <!-- 3. ZONA DERECHA -->
+    <!-- 3.  derecha -->
     <div class="d-flex align-items-center gap-2 gap-sm-3">
       <div class="bg-primary-subtle text-primary rounded-2 px-3 py-1.5 d-none d-sm-flex align-items-center gap-2">
         <span class="status-dot rounded-circle bg-primary"></span>
@@ -56,7 +56,6 @@
         <i class="bi bi-person-fill fs-5"></i>
       </a>
 
-      <!-- Botón hamburguesa (solo móvil/tablet) -->
       <button
         type="button"
         class="btn btn-light border p-1 d-flex d-lg-none align-items-center justify-content-center"
@@ -71,7 +70,6 @@
 
   </div>
 
-  <!-- Menú desplegable móvil -->
   {#if menuOpen}
     <div class="d-lg-none w-100 border-top mt-2 pt-2">
       <div class="d-flex flex-column gap-1">
@@ -85,7 +83,6 @@
           </a>
         {/each}
 
-        <!-- El botón de idioma reaparece aquí para móviles chicos donde estaba oculto -->
         <button type="button" class="btn btn-link text-secondary text-decoration-none p-1 d-md-none d-flex align-items-center gap-1 small fw-semibold text-start">
           <i class="bi bi-globe fs-6"></i>
           <span>ES</span>

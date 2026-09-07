@@ -1,5 +1,4 @@
 <script>
-	// Datos mock de los Jurados y Evaluadores
 	const evaluadores = [
 		{
 			id: 1,
@@ -33,7 +32,6 @@
 		}
 	];
 
-	// Observaciones y comentarios detallados
 	const observaciones = [
 		{
 			id: 101,
@@ -65,7 +63,6 @@
 <div class="d-flex bg-light min-vh-100">
 
 	<main class="flex-grow-1 p-3 p-md-4 overflow-x-hidden">
-		<!-- Header de la pantalla -->
 		<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 mb-4">
 			<div>
 				<span class="extra-small text-muted fw-bold text-uppercase">Evaluación & Seguimiento</span>
@@ -76,7 +73,6 @@
 			</button>
 		</div>
 
-		<!-- 1. Tarjetas del Jurado Evaluador (Grid 3 columnas) -->
 		<div class="row g-3 mb-4">
 			{#each evaluadores as prof}
 				<div class="col-12 col-md-6 col-lg-4">
@@ -111,7 +107,6 @@
 			{/each}
 		</div>
 
-		<!-- 2. Lista de Observaciones Oficiales -->
 		<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4">
 			<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-4">
 				<div>
@@ -133,12 +128,10 @@
 							<span class="extra-small text-muted">{obs.fecha}</span>
 						</div>
 
-						<!-- Contenido del mensaje -->
 						<p class="small text-secondary bg-light p-3 rounded-3 border mb-3">
 							"{obs.mensaje}"
 						</p>
 
-						<!-- Acciones y Adjuntos -->
 						<div class="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 pt-2 border-top">
 							<div class="d-flex align-items-center gap-2 flex-wrap">
 								{#if obs.estado === 'Pendiente de Corrección'}
