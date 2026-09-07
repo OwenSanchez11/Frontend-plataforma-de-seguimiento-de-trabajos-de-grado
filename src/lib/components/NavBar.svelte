@@ -1,118 +1,112 @@
 <script>
-  let menuOpen = $state(false);
+	import { page } from '$app/state';
 
-  const navLinks = [
-    { name: 'Portal Universitario', href: '#'},
-    { name: 'Guía y normativa', href: '#'},
-    { name: 'Mesa de ayuda', href: '#'},
-    { name: 'Estado del Servicio', href: '#'}
-  ];
+	let menuAbierto = $state(false);
 
-  function cerrarMenu() {
-    menuOpen = false;
-  }
+	function toggleMenu() {
+		menuAbierto = !menuAbierto;
+	}
+
+	const navLinks = [
+		{ name: 'Portal Institucional', href: 'https://www.ul.edu.co/', external: true },
+
+	];
+
+	let usuario = {
+		nombre: 'Owen Sanchez',
+		carrera: 'Ing. Sistemas',
+		rol: 'Estudiante',
+		periodo: '2025-II'
+	};
 </script>
 
-<nav class="navbar navbar-expand-lg bg-white border-bottom px-4 py-2">
+<nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top py-2">
+	<div class="container-fluid px-3 px-md-4">
+		<a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-primary" href="/">
+			<div class="bg-primary text-white rounded-3 p-1.5 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+				<i class="bi bi-mortarboard-fill extra-small"></i>
+			</div>
+			<span class="lh-sm">
+				<span class="d-block h6 fw-bold text-dark mb-0">GradosTrack</span>
+				<span class="extra-small text-muted fw-normal d-none d-sm-block">Gestión de Trabajos de Grado</span>
+			</span>
+		</a>
 
-  <div class="container-fluid d-flex align-items-center justify-content-between p-0">
+		<button
+			class="navbar-toggler border-0 p-1"
+			type="button"
+			onclick={toggleMenu}
+			aria-expanded={menuAbierto}
+			aria-label="Toggle navigation"
+		>
+			<span class="navbar-toggler-icon"></span>
+		</button>
 
-    <!-- izquierda-->
-    <a href="/" class="d-flex align-items-center text-decoration-none me-4" aria-label="Inicio">
-      <div class="bg-primary text-white rounded-2 d-flex align-items-center justify-content-center me-2 p-2" style="width: 32px; height: 32px;">
-        <i class="bi bi-box-seam-fill fs-6"></i>
-      </div>
-      <div class="lh-sm">
-        <span class="fw-bold text-dark d-block fs-6">GradosTrack</span>
-        <span class="text-secondary d-block extra-small d-none d-sm-block">Portal institucional de Grados y Tesis</span>
-      </div>
-    </a>
+		<div class="collapse navbar-collapse {menuAbierto ? 'show' : ''}" id="navbarContenido">
+			<ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-3 gap-1 pt-2 pt-lg-0">
+				{#each navLinks as link}
+					<li class="nav-item">
+						<a
+							class="nav-link extra-small fw-medium text-secondary hover-primary"
+							href={link.href}
+							target={link.external ? '_blank' : '_self'}
+							onclick={() => (menuAbierto = false)}
+						>
+							{link.name}
+							{#if link.external}
+								<i class="bi bi-box-arrow-up-right extra-small ms-0.5"></i>
+							{/if}
+						</a>
+					</li>
+				{/each}
+			</ul>
 
-    <!-- 2.  central (solo desktop) -->
-    <div class="d-none d-lg-flex align-items-center gap-4">
-      {#each navLinks as link}
-        <a href={link.href} class="nav-link-custom text-secondary text-decoration-none small fw-medium transition-colors">
-          {link.name}
-        </a>
-      {/each}
-    </div>
+			<div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-2 gap-lg-3 pt-2 pt-lg-0 border-top border-lg-0">
 
-    <!-- 3.  derecha -->
-    <div class="d-flex align-items-center gap-2 gap-sm-3">
-      <div class="bg-primary-subtle text-primary rounded-2 px-3 py-1.5 d-none d-sm-flex align-items-center gap-2">
-        <span class="status-dot rounded-circle bg-primary"></span>
-        <span class="fw-bold extra-small text-uppercase tracking-wider">Servicios Operativos</span>
-      </div>
+        <div class="d-flex align-items-center gap-1.5 bg-light px-2.5 py-1 rounded-pill border">
+					<span class="spinner-grow spinner-grow-sm text-success" style="width: 8px; height: 8px;" role="status"></span>
+					<span class="extra-small text-muted fw-medium">Servidor en línea</span>
+				</div>
 
-      <button type="button" class="btn btn-link text-secondary text-decoration-none p-1 d-none d-md-flex align-items-center gap-1 small fw-semibold">
-        <i class="bi bi-globe fs-6"></i>
-        <span>ES</span>
-      </button>
+				<span class="badge bg-primary-subtle text-primary border border-primary-subtle extra-small fw-semibold">
+					Período: {usuario.periodo}
+				</span>
 
-      <a href="/login" class="btn btn-primary rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm"
-        style="width: 36px; height: 36px;"
-        aria-label="Ir al inicio de sesión"
-      >
-        <i class="bi bi-person-fill fs-5"></i>
-      </a>
-
-      <button
-        type="button"
-        class="btn btn-light border p-1 d-flex d-lg-none align-items-center justify-content-center"
-        style="width: 36px; height: 36px;"
-        onclick={() => (menuOpen = !menuOpen)}
-        aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
-        aria-expanded={menuOpen}
-      >
-        <i class="bi {menuOpen ? 'bi-x-lg' : 'bi-list'} fs-5"></i>
-      </button>
-    </div>
-
-  </div>
-
-  {#if menuOpen}
-    <div class="d-lg-none w-100 border-top mt-2 pt-2">
-      <div class="d-flex flex-column gap-1">
-        {#each navLinks as link}
-          <a
-            href={link.href}
-            onclick={cerrarMenu}
-            class="nav-link-custom text-secondary text-decoration-none small fw-medium py-2 px-1 transition-colors"
+				<!-- En tu NavBar.svelte -->
+          <a 
+              href="/login" 
+              class="d-flex align-items-center gap-2 text-decoration-none p-1 rounded-3 profile-hover transition-all"
+              title="Cerrar sesión o Cambiar de usuario"
           >
-            {link.name}
+              <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold extra-small flex-shrink-0" style="width: 32px; height: 32px;">
+                  OS
+              </div>
+              <div class="lh-1 min-w-0">
+                  <span class="fw-bold text-dark d-block extra-small text-truncate">{usuario.nombre}</span>
+                  <span class="extra-small text-muted">{usuario.carrera}</span>
+              </div>
+              <i class="bi bi-box-arrow-right text-muted extra-small ms-1"></i>
           </a>
-        {/each}
-
-        <button type="button" class="btn btn-link text-secondary text-decoration-none p-1 d-md-none d-flex align-items-center gap-1 small fw-semibold text-start">
-          <i class="bi bi-globe fs-6"></i>
-          <span>ES</span>
-        </button>
-      </div>
-    </div>
-  {/if}
+			</div>
+		</div>
+	</div>
 </nav>
 
 <style>
-  .extra-small {
+	.extra-small {
 		font-size: 0.72rem;
 	}
-
-  .nav-link-custom {
-    color: #6c757d;
-    transition: color 0.2s ease-in-out;
-  }
-
-  .nav-link-custom:hover {
-      color: #0d6efd !important;
-    }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      display: inline-block;
-    }
-
-    .tracking-wider {
-      letter-spacing: 0.05em;
-    }
+	.hover-primary:hover {
+		color: #0d6efd !important;
+	}
+	/* Animación suave de hover sobre la tarjeta de perfil */
+	.profile-hover:hover {
+		background-color: #f8f9fa;
+	}
+	.profile-hover:hover span.text-dark {
+		color: #0d6efd !important;
+	}
+	.transition-all {
+		transition: all 0.2s ease-in-out;
+	}
 </style>

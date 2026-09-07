@@ -27,7 +27,7 @@
 			<span class="extra-small text-muted fw-bold text-uppercase tracking-wider">
 				{proyecto.facultad} • {proyecto.programa}
 			</span>
-			<h1 class="h3 fw-bold text-dark mb-0">Bienvenida de nuevo, {proyecto.estudiante}</h1>
+			<h1 class="h3 fw-bold text-dark mb-0">Bienvenido de nuevo, {proyecto.estudiante}</h1>
 		</div>
 		<div class="text-muted small d-flex align-items-center gap-2 bg-white px-3 py-1.5 rounded-3 border shadow-sm">
 			<i class="bi bi-calendar3 text-primary"></i>
