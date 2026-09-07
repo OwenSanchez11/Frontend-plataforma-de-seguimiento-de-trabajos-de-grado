@@ -50,7 +50,7 @@
 		</div>
 
 		<div class="row g-4">
-        
+
 			<div class="col-12 col-xl-5">
 				<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4">
 					<h2 class="h6 fw-bold text-dark mb-3">Trabajos de Grado Asignados</h2>
@@ -86,10 +86,10 @@
 			<!-- Columna 2: Formulario de Evaluación Final y Retroalimentación -->
 			<div class="col-12 col-xl-7">
 				<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4">
-					<div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
-						<div>
-							<span class="extra-small text-muted fw-bold text-uppercase">Evaluación en curso</span>
-							<h3 class="h6 fw-bold text-dark mb-0">{trabajoSeleccionado.estudiante}</h3>
+					<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 border-bottom pb-3">
+						<div class="min-w-0">
+							<span class="extra-small text-muted fw-bold text-uppercase d-block">Evaluación en curso</span>
+							<h3 class="h6 fw-bold text-dark mb-0 text-truncate">{trabajoSeleccionado.estudiante}</h3>
 						</div>
 						<a href="#" class="btn btn-sm btn-outline-primary rounded-3 extra-small fw-medium d-flex align-items-center gap-1">
 							<i class="bi bi-file-earmark-arrow-down"></i> Ver Avance: {trabajoSeleccionado.ultimoAvance}

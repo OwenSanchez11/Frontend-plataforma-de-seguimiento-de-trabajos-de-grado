@@ -14,12 +14,10 @@
         { id: 'hitos', name: 'Avances & Cronograma', icon: 'bi-calendar-check',  href: '/hitos'},
         { id: 'entregas', name: 'Entregas & Documentos', icon: 'bi-folder2-open',  href: '/entregas' },
         { id: 'retro', name: 'Retroalimentaciones & Jurados', icon: 'bi-chat-left-text',  href: '/retroalimentaciones' },
-        { id: 'notificaciones', name: 'Notificaciones', icon: 'bi-bell', badge: '3',  href:'#' }
     ];
 
     const menuProfesores = [
         { id: 'evaluaciones', name: 'evaluaciones', icon: 'bi-book',  href: '/evaluaciones' },
-        { id: 'soporte', name: 'Mesa de Ayuda TI', icon: 'bi-headset' ,  href: '#'}
     ];
 </script>
 
