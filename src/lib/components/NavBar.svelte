@@ -25,8 +25,8 @@
 	];
 
 	let usuario = {
-		nombre: 'Valentina Morales',
-		carrera: 'Ing. Biomédica',
+		nombre: 'Owen Sanchez',
+		carrera: 'Ing. Sistemas y computación',
 		periodo: '2025-II'
 	};
 </script>

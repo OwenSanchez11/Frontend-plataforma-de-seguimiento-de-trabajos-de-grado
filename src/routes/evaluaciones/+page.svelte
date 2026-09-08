@@ -72,7 +72,6 @@
 			>
 				<i class="bi bi-patch-check fs-6"></i>
 				<span>Calificación & Dictamen</span>
-				<span class="badge bg-danger rounded-pill extra-small">1</span>
 			</button>
 		</li>
 		<li class="nav-item">
@@ -82,7 +81,6 @@
 			>
 				<i class="bi bi-journal-bookmark fs-6"></i>
 				<span>Directorio de Trabajos Asignados</span>
-				<span class="badge bg-light text-dark border rounded-pill extra-small">{trabajosAsignados.length}</span>
 			</button>
 		</li>
 	</ul>
