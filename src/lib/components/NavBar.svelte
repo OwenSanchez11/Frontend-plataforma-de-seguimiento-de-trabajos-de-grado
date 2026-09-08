@@ -106,7 +106,7 @@
 					onclick={cerrarMenu}
 				>
 					<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold extra-small flex-shrink-0" style="width: 32px; height: 32px;">
-						VM
+						OS
 					</div>
 					<div class="lh-1 min-w-0">
 						<span class="fw-bold text-dark d-block extra-small text-truncate">{usuario.nombre}</span>
