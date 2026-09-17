@@ -40,7 +40,6 @@
 			</div>
 			<span class="lh-sm">
 				<span class="d-block h6 fw-bold text-dark mb-0">GradosTrack</span>
-				<span class="extra-small text-muted fw-normal d-none d-sm-block">Gestión de Trabajos de Grado</span>
 			</span>
 		</a>
 
