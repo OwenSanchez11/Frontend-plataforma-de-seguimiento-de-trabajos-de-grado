@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 
 	let menuAbierto = $state(false);
+	let busqueda = $state('');
 
 	function toggleMenu() {
 		menuAbierto = !menuAbierto;
@@ -11,12 +12,10 @@
 		menuAbierto = false;
 	}
 
-	// Arreglos de navegación de tu SideBar
 	const menuPrincipal = [
 		{ id: 'dashboard', name: 'Inicio', icon: 'bi-grid-1x2-fill', href: '/' },
 		{ id: 'trabajo', name: 'Mi Trabajo de Grado', icon: 'bi-journal-text', href: '/trabajoGrado' },
-		{ id: 'hitos', name: 'Avances & Cronograma', icon: 'bi-calendar-check', href: '/hitos' },
-		{ id: 'entregas', name: 'Entregas & Documentos', icon: 'bi-folder2-open', href: '/entregas' },
+		{ id: 'entregas', name: 'Avances & Entregas', icon: 'bi-folder2-open', href: '/entregas' },
 		{ id: 'retro', name: 'Retroalimentaciones & Jurados', icon: 'bi-chat-left-text', href: '/retroalimentaciones' }
 	];
 
@@ -29,12 +28,18 @@
 		carrera: 'Ing. Sistemas y computación',
 		periodo: '2025-II'
 	};
+
+	function buscar(e) {
+		e.preventDefault();
+		if (!busqueda.trim()) return;
+		console.log('Buscando:', busqueda);
+	}
 </script>
 
-<nav class="navbar navbar-expand-xl bg-white border-bottom sticky-top py-2 shadow-sm">
-	<div class="container-fluid px-3 px-md-4">
-		<!-- Brand / Logo -->
-		<a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-primary me-xl-4" href="/" onclick={cerrarMenu}>
+<header class="bg-white border-bottom sticky-top shadow-sm">
+
+	<div class="container-fluid px-3 px-md-4 py-2 d-flex align-items-center justify-content-between">
+		<a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-primary mb-0" href="/" onclick={cerrarMenu}>
 			<div class="bg-primary text-white rounded-3 p-1.5 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
 				<i class="bi bi-mortarboard-fill"></i>
 			</div>
@@ -43,21 +48,39 @@
 			</span>
 		</a>
 
-		<!-- Botón Hamburguesa Móvil -->
-		<button
-			class="navbar-toggler border-0 p-1"
-			type="button"
-			onclick={toggleMenu}
-			aria-expanded={menuAbierto}
-			aria-label="Toggle navigation"
-		>
-			<span class="navbar-toggler-icon"></span>
-		</button>
+		<div class="d-flex align-items-center gap-2">
+			<a
+				href="/login"
+				class="d-flex align-items-center gap-2 text-decoration-none p-1.5 rounded-3 profile-hover transition-all"
+				title="Cerrar sesión o Cambiar de usuario"
+				onclick={cerrarMenu}
+			>
+				<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold extra-small flex-shrink-0" style="width: 32px; height: 32px;">
+					OS
+				</div>
+				<div class="lh-1 min-w-0 d-none d-sm-block">
+					<span class="fw-bold text-dark d-block extra-small text-truncate">{usuario.nombre}</span>
+					<span class="extra-small text-muted">{usuario.carrera}</span>
+				</div>
+				<i class="bi bi-box-arrow-right text-muted extra-small d-none d-sm-inline"></i>
+			</a>
 
-		<!-- Menú Desplegable / Módulos de Navegación -->
-		<div class="collapse navbar-collapse {menuAbierto ? 'show' : ''}" id="navbarContenido">
-			<ul class="navbar-nav me-auto mb-2 mb-xl-0 gap-1 pt-2 pt-xl-0">
-				<!-- Menú Principal del Estudiante -->
+			<button
+				class="navbar-toggler border-0 p-1"
+				type="button"
+				onclick={toggleMenu}
+				aria-expanded={menuAbierto}
+				aria-label="Toggle navigation"
+			>
+				<span class="navbar-toggler-icon"></span>
+			</button>
+		</div>
+	</div>
+
+	<div class="collapse navbar-collapse-custom border-top {menuAbierto ? 'show' : ''}" id="navbarContenido">
+		<div class="container-fluid px-3 px-md-4 py-2 d-flex flex-column flex-xl-row align-items-stretch align-items-xl-center justify-content-between gap-2">
+
+			<ul class="nav flex-column flex-xl-row gap-1 mb-0 flex-grow-1">
 				{#each menuPrincipal as item}
 					<li class="nav-item">
 						<a
@@ -71,7 +94,6 @@
 					</li>
 				{/each}
 
-				<!-- Separador vertical en escritorio / horizontal en móvil -->
 				<li class="nav-item d-none d-xl-block mx-1 my-auto">
 					<div class="vr h-100 opacity-25"></div>
 				</li>
@@ -79,7 +101,6 @@
 					<span class="extra-small text-muted fw-bold text-uppercase px-2 d-block mb-1">Evaluaciones Docentes</span>
 				</li>
 
-				<!-- Menú de Profesores / Jurados -->
 				{#each menuProfesores as item}
 					<li class="nav-item">
 						<a
@@ -94,29 +115,23 @@
 				{/each}
 			</ul>
 
-			<!-- Información de Estado del Servidor y Perfil -->
-			<div class="d-flex flex-column flex-xl-row align-items-start align-items-xl-center gap-2 gap-xl-3 pt-3 pt-xl-0 border-top border-xl-0">
-				
-
-				<a 
-					href="/login" 
-					class="d-flex align-items-center gap-2 text-decoration-none p-1.5 rounded-3 profile-hover transition-all w-100 w-xl-auto"
-					title="Cerrar sesión o Cambiar de usuario"
-					onclick={cerrarMenu}
-				>
-					<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold extra-small flex-shrink-0" style="width: 32px; height: 32px;">
-						OS
-					</div>
-					<div class="lh-1 min-w-0">
-						<span class="fw-bold text-dark d-block extra-small text-truncate">{usuario.nombre}</span>
-						<span class="extra-small text-muted">{usuario.carrera}</span>
-					</div>
-					<i class="bi bi-box-arrow-right text-muted extra-small ms-auto ms-xl-1"></i>
-				</a>
-			</div>
+			<form class="d-flex flex-shrink-0" style="max-width: 280px; width: 100%;" onsubmit={buscar}>
+				<div class="input-group input-group-sm">
+					<span class="input-group-text bg-light border-end-0 text-muted">
+						<i class="bi bi-search"></i>
+					</span>
+					<input
+						type="search"
+						class="form-control border-start-0 bg-light extra-small"
+						placeholder="Buscar..."
+						bind:value={busqueda}
+						aria-label="Buscar"
+					/>
+				</div>
+			</form>
 		</div>
 	</div>
-</nav>
+</header>
 
 <style>
 	.extra-small {
@@ -134,5 +149,19 @@
 	}
 	.transition-all {
 		transition: all 0.2s ease-in-out;
+	}
+
+	/* Colapsable propio (no depende de bootstrap.js) */
+	.navbar-collapse-custom {
+		display: none;
+	}
+	.navbar-collapse-custom.show {
+		display: block;
+	}
+
+	@media (min-width: 1200px) {
+		.navbar-collapse-custom {
+			display: block !important;
+		}
 	}
 </style>
