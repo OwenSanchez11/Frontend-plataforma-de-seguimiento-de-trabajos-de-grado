@@ -1,4 +1,5 @@
 <script>
+
     const proyecto = {
 		estudiante: "Owen Sanchez",
 		facultad: "FACULTAD DE INGENIERÍA",
@@ -99,6 +100,7 @@
 			</button>
 		</div>
 	</div>
+
 </div>
 
 <style>
