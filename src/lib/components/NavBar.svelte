@@ -66,7 +66,7 @@
 			</a>
 
 			<button
-				class="border-0 p-1 bg-transparent text-dark fs-4"
+				class="border-0 p-1 bg-transparent text-dark fs-4 d-block d-xl-none"
 				type="button"
 				onclick={toggleMenu}
 				aria-expanded={menuAbierto}
