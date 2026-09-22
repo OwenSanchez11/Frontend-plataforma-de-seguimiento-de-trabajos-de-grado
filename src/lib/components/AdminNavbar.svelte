@@ -68,13 +68,13 @@
 			</a>
 
 			<button
-				class="navbar-toggler border-0 p-1"
+				class="border-0 p-1 bg-transparent text-dark fs-4"
 				type="button"
 				onclick={toggleMenu}
 				aria-expanded={menuAbierto}
 				aria-label="Toggle navigation"
 			>
-				<span class="navbar-toggler-icon"></span>
+				<i class="bi bi-list"></i>
 			</button>
 		</div>
 	</div>
