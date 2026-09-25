@@ -50,7 +50,7 @@
   .dev-role-switcher {
     position: fixed;
     bottom: 1rem;
-    right: 1rem;
+    left: 1rem;
     z-index: 1030;
   }
 </style>
