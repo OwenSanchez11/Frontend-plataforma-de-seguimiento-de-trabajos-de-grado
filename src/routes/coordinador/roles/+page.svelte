@@ -23,6 +23,11 @@
 
     let campoEnfocado = $state(false);
 
+    let historialAsignaciones = [
+      { docente: 'Carlos Ramírez', rol: 'Director / Asesor', fecha: '2026-08-15' },
+      { docente: 'María Torres', rol: 'Jurado 1', fecha: '2026-08-20' },
+      { docente: 'Luis Fernández', rol: 'Jurado 2', fecha: '2026-08-20' }
+    ];
 
     function seleccionarDirector(docente) {
         directorAsignado = docente;
@@ -174,7 +179,35 @@
   </div>
 </section>
 
+<section class="card mb-4">
+  <div class="card-body">
+    <h6 class="fw-bold">Historial de asignaciones de este trabajo</h6>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Docente</th>
+            <th>Rol</th>
+            <th>Fecha de asignación</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each historialAsignaciones as asignacion}
+            <tr>
+              <td>{asignacion.docente}</td>
+              <td>{asignacion.rol}</td>
+              <td>{asignacion.fecha}</td>
+            </tr>
+            
+          {/each}
+        </tbody>
 
+      </table>
+
+    </div>
+  </div>
+
+</section>
 
 
 

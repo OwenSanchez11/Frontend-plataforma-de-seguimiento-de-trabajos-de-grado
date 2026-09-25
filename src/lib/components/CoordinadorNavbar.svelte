@@ -16,7 +16,7 @@
         {id: 'inicio', name: 'Inicio', icon: 'bi-grid-1x2-fill', href: '/coordinador'},
         { id: 'Avances', name: 'Avances & entrgas', icon: 'bi-building', href: '/coordinador/avances' },
         { id: 'roles', name: 'Asignación de roles', icon: 'bi-journal-text', href: '/coordinador/roles' },
-        { id: 'trabajos-grado', name: 'Trabajos de Grado', icon: 'bi-folder2-open', href: '/coordinador/trabajos-grado' },
+        { id: 'trabajos-grado', name: 'Trabajos de Grado', icon: 'bi-folder2-open', href: '/coordinador/trabajoGrado' },
         { id: 'evaluaciones', name: 'Evaluaciones', icon: 'bi-book', href: '/coordinador/evaluaciones' },
     ];
 
