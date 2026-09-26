@@ -19,7 +19,12 @@
 		{ id: 'usuarios', name: 'Usuarios', icon: 'bi-grid-1x2-fill', href: '/admin/usuarios' },
 		{ id: 'roles', name: 'Roles', icon: 'bi-journal-text', href: '/admin/roles' },
 		{ id: 'trabajos-grado', name: 'Trabajos de Grado', icon: 'bi-folder2-open', href: '/admin/trabajos-grado' },
-		{ id: 'facultades', name: 'Facultades & Carreras', icon: 'bi-building', href: '/admin/facultades-carreras' }
+		{ id: 'facultades', name: 'Facultades & Carreras', icon: 'bi-building', href: '/admin/facultades-carreras' },
+
+		// Nuevas opciones del administrador
+		{ id: 'evaluaciones', name: 'Evaluaciones', icon: 'bi-clipboard-check', href: '/admin/evaluaciones' },
+		{ id: 'avances', name: 'Avances', icon: 'bi-graph-up-arrow', href: '/admin/avances' },
+		{ id: 'entregas', name: 'Entregas', icon: 'bi-cloud-arrow-up', href: '/admin/entregas' }
 	];
 
 	const menuProfesores = [
