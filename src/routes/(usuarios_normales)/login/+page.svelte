@@ -35,13 +35,6 @@
 			>
 				<i class="bi bi-person-vcard me-1"></i> Credenciales
 			</button>
-			<button
-				type="button"
-				class="btn btn-sm flex-fill rounded-2 fw-medium border-0 py-2 {tabActiva === 'sso' ? 'btn-white shadow-sm text-primary' : 'text-secondary'}"
-				on:click={() => (tabActiva = 'sso')}
-			>
-				<i class="bi bi-link-45deg me-1"></i> Acceso SSO
-			</button>
 		</div>
 
 		<form on:submit|preventDefault={handleLogin}>

@@ -1,60 +1,39 @@
 <script>
-  let trabajos = $state([
-    {
-      id: 1,
-      id_carrera: 1,
-      titulo: "Sistema de seguimiento de trabajos de grado",
-      resumen: "Plataforma web para realizar seguimiento a los trabajos de grado.",
-      linea_investigacion: "Desarrollo de software",
-      estado_tramite: "En proceso",
-      fecha_inicio: "2026-02-10",
-      fecha_fin: "",
-      fecha_sustentacion: "",
-      observaciones_finales: "",
-      estado: true
-    },
-    {
-      id: 2,
-      id_carrera: 2,
-      titulo: "Plataforma web para gestión académica",
-      resumen: "Sistema orientado a mejorar la gestión de procesos académicos.",
-      linea_investigacion: "Tecnologías de la información",
-      estado_tramite: "En proceso",
-      fecha_inicio: "2026-03-15",
-      fecha_fin: "",
-      fecha_sustentacion: "",
-      observaciones_finales: "",
-      estado: true
-    },
-    {
-      id: 3,
-      id_carrera: 3,
-      titulo: "Sistema de gestión de proyectos",
-      resumen: "Aplicación para administrar proyectos universitarios.",
-      linea_investigacion: "Ingeniería de software",
-      estado_tramite: "Finalizado",
-      fecha_inicio: "2025-08-20",
-      fecha_fin: "2026-05-20",
-      fecha_sustentacion: "2026-06-05",
-      observaciones_finales: "Trabajo aprobado.",
-      estado: true
-    }
-  ]);
 
-  let carreras = $state([
-    {
-      id: 1,
-      nombre: "Ingeniería de Sistemas"
-    },
-    {
-      id: 2,
-      nombre: "Ingeniería Industrial"
-    },
-    {
-      id: 3,
-      nombre: "Ingeniería Electrónica"
+  import {onMount} from 'svelte';
+  import {getTrabajos, getCarreras} from '$lib/api'
+ 
+  let trabajos = $state([]);
+  let carreras = $state([]);
+  let cargando = $state(true);
+  let error = $state(null);
+
+  onMount(async () => {
+    const [resTrabajos, resCarreras] = await Promise.allSettled([
+      getTrabajos(),
+      getCarreras()
+    ]);
+    if (resTrabajos.status === 'fulfilled') {
+      trabajos = resTrabajos.value;
+    } else {
+      console.error(resTrabajos.reason);
+      error = resTrabajos.reason.message;
     }
-  ]);
+
+    if (resCarreras.status === 'fulfilled') {
+      carreras = resCarreras.value;
+    }
+    else {
+      console.error(resCarreras.reason);
+      error = resCarreras.reason.message;
+    }
+
+    console.log(Object.keys(trabajos[0]));
+    console.log($state.snapshot(carreras[0]));  
+    cargando = false;
+
+
+  })
 
   let busqueda = $state("");
   let modalAbierto = $state(false);
@@ -82,23 +61,19 @@
       const texto = busqueda.toLowerCase();
 
       return (
-        trabajo.titulo.toLowerCase().includes(texto) ||
-        trabajo.resumen.toLowerCase().includes(texto) ||
-        trabajo.linea_investigacion.toLowerCase().includes(texto) ||
-        trabajo.estado_tramite.toLowerCase().includes(texto) ||
-        obtenerNombreCarrera(trabajo.id_carrera)
-          .toLowerCase()
-          .includes(texto)
+        (trabajo.titulo ?? "").toLowerCase().includes(texto) ||
+        (trabajo.resumen ?? "").toLowerCase().includes(texto) ||
+        (trabajo.estado_tramite ?? "").toLowerCase().includes(texto) ||
+        obtenerNombreCarrera(trabajo.id_carrera).toLowerCase().includes(texto)
       );
     })
   );
 
-  function obtenerNombreCarrera(idCarrera) {
+  function obtenerNombreCarrera(id_carrera) {
     const carrera = carreras.find(
-      (item) => item.id === Number(idCarrera)
+      (item) => item.id_carrera === Number(id_carrera)
     );
-
-    return carrera ? carrera.nombre : "Carrera no encontrada";
+    return carrera ? carrera.nombre_carrera : "Carrera no encontrada";
   }
 
   function obtenerClaseEstado(trabajo) {
@@ -127,16 +102,16 @@
     modoFormulario = "crear";
 
     formulario = {
-      id_carrera: "",
-      titulo: "",
-      resumen: "",
-      linea_investigacion: "",
-      estado_tramite: "En proceso",
-      fecha_inicio: "",
-      fecha_fin: "",
-      fecha_sustentacion: "",
-      observaciones_finales: "",
-      estado: true
+      id_carrera: trabajo.id_carrera,
+      titulo: trabajo.titulo ?? "",
+      resumen: trabajo.resumen ?? "",
+      linea_investigacion: trabajo.linea_investigacion ?? "",
+      estado_tramite: trabajo.estado_tramite ?? "En proceso",
+      fecha_inicio: trabajo.fecha_inicio ?? "",
+      fecha_fin: trabajo.fecha_fin ?? "",
+      fecha_sustentacion: trabajo.fecha_sustentacion ?? "",
+      observaciones_finales: trabajo.observaciones_finales ?? "",
+      estado: trabajo.estado
     };
 
     modalFormulario = true;
@@ -198,7 +173,7 @@
 
     } else {
       trabajos = trabajos.map((trabajo) => {
-        if (trabajo.id === trabajoSeleccionado.id) {
+        if (trabajo.id_trabajo_grado === trabajoSeleccionado.id_trabajo_grado) {
           return {
             ...trabajo,
             id_carrera: Number(formulario.id_carrera),
@@ -233,7 +208,7 @@
 
   function eliminarTrabajo() {
     trabajos = trabajos.filter(
-      (trabajo) => trabajo.id !== trabajoSeleccionado.id
+      (trabajo) => trabajo.id_trabajo_grado !== trabajoSeleccionado.id_trabajo_grado
     );
 
     cerrarEliminar();
@@ -249,7 +224,6 @@
 
 <div class="container-fluid py-4">
 
-  <!-- ENCABEZADO -->
 
   <div class="d-flex justify-content-between align-items-center mb-4">
 
@@ -274,7 +248,6 @@
   </div>
 
 
-  <!-- BUSCADOR -->
 
   <div class="card border-0 shadow-sm rounded-4 p-3 mb-3">
 
@@ -296,7 +269,6 @@
   </div>
 
 
-  <!-- TABLA -->
 
   <div class="card border-0 shadow-sm rounded-4 p-3">
 
@@ -321,97 +293,105 @@
 
         <tbody>
 
-          {#each trabajosFiltrados as trabajo (trabajo.id)}
 
+          {#if cargando}
             <tr>
-
-              <td>
-
-                <div class="fw-semibold">
-                  {trabajo.titulo}
-                </div>
-
-                <small class="text-muted">
-                  ID: {trabajo.id}
-                </small>
-
+              <td colspan="5" class="text-center text-muted py-4">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Cargando trabajos de grado...
               </td>
-
-
-              <td class="text-muted small">
-                {obtenerNombreCarrera(trabajo.id_carrera)}
-              </td>
-
-
-              <td class="text-muted small">
-                {trabajo.estado_tramite}
-              </td>
-
-
-              <td>
-
-                <span
-                  class="badge rounded-pill
-                  {trabajo.estado
-                    ? obtenerClaseEstado(trabajo)
-                    : 'text-bg-secondary'}"
-                >
-                  {trabajo.estado
-                    ? trabajo.estado_tramite
-                    : "Inactivo"}
-                </span>
-
-              </td>
-
-
-              <td class="text-end">
-
-                <button
-                  class="btn btn-sm btn-light rounded-circle me-1"
-                  title="Ver detalles"
-                  onclick={() => verTrabajo(trabajo)}
-                >
-                  <i class="bi bi-eye"></i>
-                </button>
-
-
-                <button
-                  class="btn btn-sm btn-light rounded-circle me-1"
-                  title="Editar"
-                  onclick={() => abrirEditarTrabajo(trabajo)}
-                >
-                  <i class="bi bi-pencil"></i>
-                </button>
-
-
-                <button
-                  class="btn btn-sm btn-light rounded-circle"
-                  title="Eliminar"
-                  onclick={() => confirmarEliminar(trabajo)}
-                >
-                  <i class="bi bi-trash"></i>
-                </button>
-
-              </td>
-
             </tr>
 
-          {/each }
+            {:else if error}
+              <tr>
+                <td colspan="5" class="text-center text-danger py-4">{error}</td>
+              </tr>
+
+            {:else if trabajosFiltrados.length === 0}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                  {busqueda ? "No se encontraron trabajos de grado con esa búsqueda." : "Aún no hay trabajos de grado registrados."}
+                </td>
+              </tr>
+
+          {:else}
+            {#each trabajosFiltrados as trabajo (trabajo.id_trabajo_grado)}
+
+              <tr>
+
+                <td>
+
+                  <div class="fw-semibold">
+                    {trabajo.titulo}
+                  </div>
+
+                  <small class="text-muted">
+                    ID: {trabajo.id_trabajo_grado}
+                  </small>
+
+                </td>
 
 
-          {#if trabajosFiltrados.length === 0}
+                <td class="text-muted small">
+                  {obtenerNombreCarrera(trabajo.id_carrera)}
+                </td>
 
-            <tr>
 
-              <td
-                colspan="5"
-                class="text-center text-muted py-4"
-              >
-                No se encontraron trabajos de grado con esa búsqueda.
-              </td>
+                <td class="text-muted small">
+                  {trabajo.estado_tramite ?? "sin estado"}
+                </td>
 
-            </tr>
 
+                <td>
+
+                  <span
+                    class="badge rounded-pill
+                    {trabajo.estado
+                      ? obtenerClaseEstado(trabajo)
+                      : 'text-bg-secondary'}"
+                  >
+                    {trabajo.estado
+                      ? trabajo.estado_tramite
+                      : "Inactivo"}
+                  </span>
+
+                </td>
+
+
+                <td class="text-end">
+
+                  <button
+                    class="btn btn-sm btn-light rounded-circle me-1"
+                    title="Ver detalles"
+                    onclick={() => verTrabajo(trabajo)}
+                  >
+                    <i class="bi bi-eye"></i>
+                  </button>
+
+
+                  <button
+                    class="btn btn-sm btn-light rounded-circle me-1"
+                    title="Editar"
+                    onclick={() => abrirEditarTrabajo(trabajo)}
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </button>
+
+
+                  <button
+                    class="btn btn-sm btn-light rounded-circle"
+                    title="Eliminar"
+                    onclick={() => confirmarEliminar(trabajo)}
+                  >
+                    <i class="bi bi-trash"></i>
+                  </button>
+
+                </td>
+
+              </tr>
+
+            {/each }
+          
           {/if}
 
         </tbody>
@@ -425,7 +405,6 @@
 </div>
 
 
-<!-- MODAL DETALLES -->
 
 {#if modalAbierto && trabajoSeleccionado}
 
@@ -575,7 +554,6 @@
 {/if}
 
 
-<!-- MODAL CREAR / EDITAR -->
 
 {#if modalFormulario}
 
@@ -611,7 +589,6 @@
 
       <div class="row g-3">
 
-        <!-- CARRERA -->
 
         <div class="col-12">
 
@@ -628,10 +605,10 @@
               Selecciona una carrera
             </option>
 
-            {#each carreras as carrera}
+            {#each carreras as carrera (carrera.id_carrera)}
 
-              <option value={carrera.id}>
-                {carrera.nombre}
+              <option value={carrera.id_carrera}>
+                {carrera.nombre_carrera}
               </option>
 
             {/each}
@@ -641,7 +618,6 @@
         </div>
 
 
-        <!-- TÍTULO -->
 
         <div class="col-12">
 
@@ -659,7 +635,6 @@
         </div>
 
 
-        <!-- RESUMEN -->
 
         <div class="col-12">
 
@@ -677,7 +652,6 @@
         </div>
 
 
-        <!-- LÍNEA DE INVESTIGACIÓN -->
 
         <div class="col-12">
 
@@ -695,7 +669,6 @@
         </div>
 
 
-        <!-- ESTADO DEL TRÁMITE -->
 
         <div class="col-md-6">
 
@@ -725,7 +698,6 @@
         </div>
 
 
-        <!-- ESTADO -->
 
         <div class="col-md-6">
 
@@ -751,7 +723,6 @@
         </div>
 
 
-        <!-- FECHA INICIO -->
 
         <div class="col-md-6">
 
@@ -768,7 +739,6 @@
         </div>
 
 
-        <!-- FECHA FIN -->
 
         <div class="col-md-6">
 
@@ -785,7 +755,6 @@
         </div>
 
 
-        <!-- FECHA SUSTENTACIÓN -->
 
         <div class="col-12">
 
@@ -802,7 +771,6 @@
         </div>
 
 
-        <!-- OBSERVACIONES -->
 
         <div class="col-12">
 
@@ -854,7 +822,6 @@
 {/if}
 
 
-<!-- MODAL ELIMINAR -->
 
 {#if modalEliminar && trabajoSeleccionado}
 

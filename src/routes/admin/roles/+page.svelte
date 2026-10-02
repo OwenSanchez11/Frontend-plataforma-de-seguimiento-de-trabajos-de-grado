@@ -1,55 +1,58 @@
 <script>
-  let roles = $state([
-    {
-      id: 1,
-      nombre: "Estudiante",
-      descripcion: "Usuario que gestiona su propio trabajo de grado",
-      estado: true,
-      modulos: ["Mi Trabajo de Grado", "Avances & Entregas", "Retroalimentaciones"]
-    },
-    {
-      id: 2,
-      nombre: "Director",
-      descripcion: "Guía y aprueba los avances del trabajo de grado",
-      estado: true,
-      modulos: ["Avances & Entregas", "Retroalimentaciones", "Evaluaciones"]
-    },
-    {
-      id: 3,
-      nombre: "Jurado",
-      descripcion: "Evalúa el trabajo de grado en las fases finales",
-      estado: true,
-      modulos: ["Retroalimentaciones", "Evaluaciones"]
-    },
-    {
-      id: 4,
-      nombre: "Coordinador",
-      descripcion: "Supervisa el proceso general del programa",
-      estado: true,
-      modulos: ["Trabajos de Grado", "Evaluaciones", "Usuarios"]
-    },
-    {
-      id: 5,
-      nombre: "Admin",
-      descripcion: "Control total de la plataforma",
-      estado: true,
-      modulos: ["Usuarios", "Roles", "Trabajos de Grado", "Facultades & Carreras"]
-    }
-  ]);
+  import {onMount} from 'svelte';
+  import {getRoles, getModulos, getModulosRol} from '$lib/api';
 
+  let roles = $state([]);
+  let modulos = $state([]);
+  let modulosRol = $state([]);
   let busqueda = $state("");
   let modalAbierto = $state(false);
   let rolSeleccionado = $state(null);
+  let cargando = $state(true);
+  let error = $state(null);
+
+  onMount(async () => {
+    const [resRoles, resModulos, resModulosRol] = await Promise.allSettled([getRoles(), getModulos(),getModulosRol()]);
+    if(resRoles.status === 'fulfilled') {
+      roles = resRoles.value;
+    } else {
+      console.error(resRoles.reason);
+      error = resRoles.reason.message;
+    }
+    if (resModulos.status === 'fulfilled') {
+        modulos = resModulos.value;
+    } else {
+      console.error("modulos:", resModulos.reason);
+    }
+    if(resModulosRol.status === 'fulfilled') {
+      modulosRol = resModulosRol.value;
+    }else {
+      console.error("modulo_rol:", resModulosRol.reason);
+    }
+
+    cargando = false;
+  
+  });
+
+  let rolesConModulos = $derived(
+    roles.map((r) => {
+      const idsModulos = modulosRol.filter((mr) => mr.id_rol === r.id_rol).map((mr) => mr.id_modulo);
+
+      return {
+        ...r,
+        modulos: modulos.filter((m) => idsModulos.includes(m.id_modulo))
+      };
+    })
+  );
 
   let rolesFiltrados = $derived(
-    roles.filter(r =>
-      r.nombre.toLowerCase().includes(busqueda.toLowerCase())
-      || r.descripcion.toLowerCase().includes(busqueda.toLowerCase())
+    rolesConModulos.filter((r) =>
+      (r.rol_nombre ?? "").toLowerCase().includes(busqueda.toLowerCase())
     )
   );
 
-  function toggleEstado(id) {
-    roles = roles.map(r => r.id === id ? { ...r, estado: !r.estado } : r);
+  function toggleEstado(id_rol) {
+    roles = roles.map(r => r.id_rol === id_rol ? { ...r, estado: !r.estado } : r);
   }
 
   function verModulos(rol) {
@@ -92,47 +95,53 @@
         <thead>
           <tr class="text-muted small text-uppercase">
             <th>Rol</th>
-            <th>Descripción</th>
             <th>Módulos Asignados</th>
             <th>Estado</th>
             <th class="text-end">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {#each rolesFiltrados as r (r.id)}
+          {#if cargando}
             <tr>
-              <td class="fw-semibold">{r.nombre}</td>
-              <td class="text-muted small">{r.descripcion}</td>
-              <td>
-                <button
-                  class="btn btn-sm btn-outline-primary rounded-pill"
-                  onclick={() => verModulos(r)}
-                >
-                  {r.modulos.length} módulos <i class="bi bi-chevron-right small"></i>
-                </button>
-              </td>
-              <td>
-                <button
-                  class="btn btn-sm {r.estado ? 'btn-outline-success' : 'btn-outline-secondary'} rounded-pill"
-                  onclick={() => toggleEstado(r.id)}
-                >
-                  {r.estado ? 'Activo' : 'Inactivo'}
-                </button>
-              </td>
-              <td class="text-end">
-                <button class="btn btn-sm btn-light rounded-circle" title="Editar">
-                  <i class="bi bi-pencil"></i>
-                </button>
-              </td>
+              <td colspan="4" class="text-center text-muted py-4">Cargando roles...</td>
             </tr>
-          {/each}
-
-          {#if rolesFiltrados.length === 0}
+          {:else if error} 
             <tr>
-              <td colspan="5" class="text-center text-muted py-4">
+              <td colspan="4" class="text-center text-danger py-4">{error}</td>
+            </tr>
+          {:else if rolesFiltrados.length === 0}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">
                 No se encontraron roles con esa búsqueda.
               </td>
             </tr>
+          {:else}
+            {#each rolesFiltrados as r (r.id_rol)}
+              <tr>
+                <td class="fw-semibold">{r.rol_nombre}</td>
+                <td>
+                  <button
+                    class="btn btn-sm btn-outline-primary rounded-pill"
+                    onclick={() => verModulos(r)}
+                  >
+                    {r.modulos.length} módulos <i class="bi bi-chevron-right small"></i>
+                  </button>
+                </td>
+                <td>
+                  <button
+                    class="btn btn-sm {r.estado ? 'btn-outline-success' : 'btn-outline-secondary'} rounded-pill"
+                    onclick={() => toggleEstado(r.id_rol)}
+                  >
+                    {r.estado ? 'Activo' : 'Inactivo'}
+                  </button>
+                </td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-light rounded-circle" title="Editar">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                </td>
+              </tr>
+            {/each}
           {/if}
         </tbody>
       </table>
@@ -161,7 +170,7 @@
         >
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 id="titulo-modal-rol" class="fw-bold mb-0">
-                    Módulos de &quot;{rolSeleccionado.nombre}&quot;
+                    Módulos de &quot;{rolSeleccionado.rol_nombre}&quot;
                 </h6>
                 <button
                     type="button"
@@ -171,10 +180,10 @@
                 ></button>
             </div>
             <ul class="list-group list-group-flush">
-                {#each rolSeleccionado.modulos as modulo}
+                {#each rolSeleccionado.modulos as modulo (modulo.id_modulo)}
                     <li class="list-group-item d-flex align-items-center gap-2 px-0">
                         <i class="bi bi-check-circle-fill text-success"></i>
-                        {modulo}
+                        {modulo.nombre_modulo}
                     </li>
                 {/each}
             </ul>

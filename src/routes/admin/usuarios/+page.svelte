@@ -1,16 +1,59 @@
 <script>
-  // Datos de ejemplo — luego vienen de GET /api/admin/usuarios
-  let usuarios = $state([
-    { id: 1, nombre: "Owen Sanchez", correo: "owen.sanchez@cul.edu.co", rol: "Estudiante", facultad: "Ingeniería", estado: true, fecha_registro: "2025-01-15" },
-    { id: 2, nombre: "María Torres", correo: "maria.torres@cul.edu.co", rol: "Jurado", facultad: "Ingeniería", estado: true, fecha_registro: "2024-08-10" },
-    { id: 3, nombre: "Carlos Ruiz", correo: "carlos.ruiz@cul.edu.co", rol: "Director", facultad: "Ingeniería", estado: true, fecha_registro: "2024-06-01" },
-    { id: 4, nombre: "Laura Gómez", correo: "laura.gomez@cul.edu.co", rol: "Estudiante", facultad: "Ciencias Económicas", estado: false, fecha_registro: "2025-02-20" },
-    { id: 5, nombre: "Andrés Pérez", correo: "andres.perez@cul.edu.co", rol: "Coordinador", facultad: "Ingeniería", estado: true, fecha_registro: "2024-03-05" }
-  ]);
+
+  import {onMount} from 'svelte';
+  import {getUsuarios, getRoles, getCarreras} from '$lib/api'
+
+  let usuarios = $state([]);
+  let roles = $state([]);
+  let carreras = $state([]);
+  let cargando = $state(true);
+  let error = $state(null);
 
   let busqueda = $state("");
   let filtroRol = $state("todos");
   let filtroEstado = $state("todos");
+
+
+  onMount(async () => {
+    const [resUsuarios, resRoles, resCarreras] = await Promise.allSettled([
+      getUsuarios(),
+      getRoles(),
+      getCarreras()
+    ]);
+
+    if(resUsuarios.status === 'fulfilled') {
+      usuarios = resUsuarios.value;
+    } else {
+      console.error(resUsuarios.reason);
+      error = resUsuarios.reason.message;
+    }
+
+    if (resRoles.status === 'fulfilled') {
+      roles = resRoles.value;
+    } else {
+      console.error(resRoles.reason);
+    }
+    if (resCarreras.status === 'fulfilled') {
+      carreras = resCarreras.value;
+    } else {
+      console.error(resCarreras.reason)
+    }
+
+    cargando = false;
+
+  })
+
+
+  function obtenerNombreRol(id_rol) {
+    const rol = roles.find((r) => r.id_rol === Number(id_rol));
+    return rol ? rol.rol_nombre : "Sin rol";
+  }
+ 
+  function obtenerNombreCarrera(id_carrera) {
+    const carrera = carreras.find((c) => c.id_carrera === Number(id_carrera));
+    return carrera ? carrera.nombre_carrera : "Sin carreras";
+  }
+
 
   const rolColor = {
     "Estudiante": "primary",
@@ -19,22 +62,29 @@
     "Coordinador": "warning"
   };
 
-  let usuariosFiltrados = $derived.by(() => usuarios.filter(u => {
-    const coincideBusqueda = u.nombre.toLowerCase().includes(busqueda.toLowerCase())
-      || u.correo.toLowerCase().includes(busqueda.toLowerCase());
-    const coincideRol = filtroRol === "todos" || u.rol === filtroRol;
-    const coincideEstado = filtroEstado === "todos"
-      || (filtroEstado === "activo" && u.estado)
-      || (filtroEstado === "inactivo" && !u.estado);
-    return coincideBusqueda && coincideRol && coincideEstado;
-  }));
+  let usuariosFiltrados = $derived.by(() => {
+    const texto = busqueda.toLowerCase();
+
+    return usuarios.filter((u) => {
+      const nombreCompleto = `${u.nombre ?? ""} ${u.apellidos}`.toLowerCase();
+      const correo = (u.correo ?? "").toLowerCase();
+
+      const coincideBusqueda = nombreCompleto.includes(texto) || correo.includes(texto);
+      const coincideRol = filtroRol === 'todos' || u.id_rol === Number(filtroRol);
+      const coincideEstado = filtroEstado === 'todos' ||
+      (filtroEstado === "activo" && u.estado) ||
+      (filtroEstado === "inactivo" && !u.estado);
+
+      return coincideBusqueda && coincideRol && coincideEstado;
+    });
+  });
 
   function formatearFecha(fecha) {
     return new Date(fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   function toggleEstado(id) {
-    usuarios = usuarios.map(u => u.id === id ? { ...u, estado: !u.estado } : u);
+    usuarios = usuarios.map(u => u.id_user === id ? { ...u, estado: !u.estado } : u);
   }
 </script>
 
@@ -50,7 +100,6 @@
     </button>
   </div>
  
-  <!-- Filtros -->
   <div class="card border-0 shadow-sm rounded-4 p-3 mb-3">
     <div class="row g-2">
       <div class="col-md-5">
@@ -67,10 +116,9 @@
       <div class="col-md-3">
         <select class="form-select" bind:value={filtroRol}>
           <option value="todos">Todos los roles</option>
-          <option value="Estudiante">Estudiante</option>
-          <option value="Director">Director</option>
-          <option value="Jurado">Jurado</option>
-          <option value="Coordinador">Coordinador</option>
+          {#each roles as rol (rol.id_rol)}
+            <option value={rol.id_rol}>{rol.rol_nombre}</option>            
+          {/each}
         </select>
       </div>
       <div class="col-md-3">
@@ -83,7 +131,6 @@
     </div>
   </div>
  
-  <!-- Tabla -->
   <div class="card border-0 shadow-sm rounded-4 p-3">
     <div class="table-responsive">
       <table class="table align-middle mb-0">
@@ -92,47 +139,56 @@
             <th>Nombre</th>
             <th>Correo</th>
             <th>Rol</th>
-            <th>Facultad</th>
+            <th>Carrera</th>
             <th>Registro</th>
             <th>Estado</th>
             <th class="text-end">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {#each usuariosFiltrados as u (u.id)}
+          {#if cargando}
             <tr>
-              <td class="fw-semibold">{u.nombre}</td>
-              <td class="text-muted">{u.correo}</td>
-              <td>
-                <span class="badge rounded-pill text-bg-{rolColor[u.rol] ?? 'secondary'}">{u.rol}</span>
-              </td>
-              <td>{u.facultad}</td>
-              <td class="text-muted small">{formatearFecha(u.fecha_registro)}</td>
-              <td>
-                <button
-                  class="btn btn-sm {u.estado ? 'btn-outline-success' : 'btn-outline-secondary'} rounded-pill"
-                  on:click={() => toggleEstado(u.id)}
-                >
-                  {u.estado ? 'Activo' : 'Inactivo'}
-                </button>
-              </td>
-              <td class="text-end">
-                <button class="btn btn-sm btn-light rounded-circle" title="Ver detalle">
-                  <i class="bi bi-eye"></i>
-                </button>
-                <button class="btn btn-sm btn-light rounded-circle" title="Editar">
-                  <i class="bi bi-pencil"></i>
-                </button>
-              </td>
+              <td colspan="7" class="text-center text-muted py-4">Cargando usuarios</td>
             </tr>
-          {/each}
- 
-          {#if usuariosFiltrados.length === 0}
+          {:else if error}
+            <tr>
+              <td colspan="7" class="text-center text-danger py-4">{error}</td>
+            </tr>
+
+          {:else if usuariosFiltrados.length === 0}
             <tr>
               <td colspan="7" class="text-center text-muted py-4">
                 No se encontraron usuarios con esos filtros.
               </td>
             </tr>
+          {:else}
+            {#each usuariosFiltrados as u (u.id_user)}
+              <tr>
+                <td class="fw-semibold">{u.nombre}</td>
+                <td class="text-muted">{u.email}</td>
+                <td>
+                  <span class="badge rounded-pill text-bg-{rolColor[obtenerNombreRol(u.id_rol)] ?? 'secondary'}">{obtenerNombreRol(u.id_rol)}</span>
+                </td>
+                <td>{obtenerNombreCarrera(u.id_carrera)}</td>
+                <td class="text-muted small">{formatearFecha(u.fecha_registro)}</td>
+                <td>
+                  <button
+                    class="btn btn-sm {u.estado ? 'btn-outline-success' : 'btn-outline-secondary'} rounded-pill"
+                    on:click={() => toggleEstado(u.id_user)}
+                  >
+                    {u.estado ? 'Activo' : 'Inactivo'}
+                  </button>
+                </td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-light rounded-circle" title="Ver detalle">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <button class="btn btn-sm btn-light rounded-circle" title="Editar">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                </td>
+              </tr>
+            {/each}
           {/if}
         </tbody>
       </table>

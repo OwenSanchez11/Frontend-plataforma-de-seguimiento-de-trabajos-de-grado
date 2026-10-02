@@ -1,55 +1,36 @@
 <script>
-    let facultades = $state([
-        {
-            id: 1,
-            nombre: "Facultad de Ingeniería",
-            codigo: "FI",
-            estado: true
-        },
-        {
-            id: 2,
-            nombre: "Facultad de Ciencias Económicas",
-            codigo: "FCE",
-            estado: true
-        },
-        {
-            id: 3,
-            nombre: "Facultad de Ciencias Sociales",
-            codigo: "FCS",
-            estado: true
-        }
-    ]);
 
-    let carreras = $state([
-        {
-            id: 1,
-            id_facultad: 1,
-            nombre: "Ingeniería de Sistemas",
-            codigo: "IS",
-            estado: true
-        },
-        {
-            id: 2,
-            id_facultad: 1,
-            nombre: "Ingeniería Industrial",
-            codigo: "II",
-            estado: true
-        },
-        {
-            id: 3,
-            id_facultad: 1,
-            nombre: "Ingeniería Electrónica",
-            codigo: "IE",
-            estado: true
-        },
-        {
-            id: 4,
-            id_facultad: 2,
-            nombre: "Administración de Empresas",
-            codigo: "AE",
-            estado: true
+    import {onMount} from 'svelte';
+    import {getFacultades, getCarreras} from '$lib/api';
+
+    let facultades = $state([]);
+    let carreras = $state([]);
+    let cargando = $state(true);
+    let error = $state(null);
+
+    onMount(async () => {
+        const [resFacultades, resCarreras] = await Promise.allSettled([
+            getFacultades(),
+            getCarreras()
+        ])
+
+        if (resFacultades.status === 'fulfilled') {
+            facultades = resFacultades.value;
+        } else {
+            console.error(resFacultades.reason);
+            error = resFacultades.reason.message;
         }
-    ]);
+
+        if (resCarreras.status === 'fulfilled') {
+            carreras = resCarreras.value;
+        } else {
+            console.error(resCarreras.reason)
+        }
+
+        cargando = false;
+
+    });
+
 
     let busqueda = $state("");
     let pestanaActiva = $state("facultades");
@@ -80,24 +61,23 @@
 
     let facultadesFiltradas = $derived(
         facultades.filter((facultad) =>
-            facultad.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-            facultad.codigo.toLowerCase().includes(busqueda.toLowerCase())
+            (facultad.nombre_facultad ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
+            (facultad.codigo_facultad ?? "").toLowerCase().includes(busqueda.toLowerCase())
         )
     );
 
     let carrerasFiltradas = $derived(
         carreras.filter((carrera) =>
-            carrera.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-            carrera.codigo.toLowerCase().includes(busqueda.toLowerCase()) ||
-            obtenerNombreFacultad(carrera.id_facultad)
-                .toLowerCase()
-                .includes(busqueda.toLowerCase())
+            (carrera.nombre_carrera ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
+            (carrera.codigo_carrera ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
+            obtenerNombreFacultad(carrera.id_facultad).toLowerCase().includes(busqueda.toLowerCase())
         )
     );
 
-    function obtenerNombreFacultad(id) {
-        const facultad = facultades.find((item) => item.id === Number(id));
-        return facultad ? facultad.nombre : "Sin facultad";
+
+    function obtenerNombreFacultad(id_facultad) {
+        const facultad = facultades.find((item) => item.id_facultad === Number(id_facultad));
+        return facultad ? facultad.nombre_facultad : "Sin facultad";
     }
 
     function abrirNuevaFacultad() {
@@ -134,9 +114,9 @@
         tipoFormulario = "facultad";
 
         formularioFacultad = {
-            id: facultad.id,
-            nombre: facultad.nombre,
-            codigo: facultad.codigo,
+            id: facultad.id_facultad,
+            nombre: facultad.nombre_facultad,
+            codigo: facultad.codigo_facultad,
             estado: facultad.estado
         };
 
@@ -148,10 +128,10 @@
         tipoFormulario = "carrera";
 
         formularioCarrera = {
-            id: carrera.id,
+            id: carrera.id_carrera,
             id_facultad: carrera.id_facultad,
-            nombre: carrera.nombre,
-            codigo: carrera.codigo,
+            nombre: carrera.nombre_carrera,
+            codigo: carrera.codigo_carrera,
             estado: carrera.estado
         };
 
@@ -178,7 +158,7 @@
 
         if (modoEdicion) {
             const indice = facultades.findIndex(
-                (item) => item.id === formularioFacultad.id
+                (item) => item.id_facultad === formularioFacultad.id_facultad
             );
 
             if (indice !== -1) {
@@ -371,74 +351,85 @@
                         </thead>
 
                         <tbody>
-                            {#each facultadesFiltradas as facultad}
+                            {#if cargando}
                                 <tr>
-                                    <td>{facultad.id}</td>
-
-                                    <td>
-                                        <strong>{facultad.nombre}</strong>
-                                    </td>
-
-                                    <td>
-                                        <span class="badge bg-light text-dark">
-                                            {facultad.codigo || "Sin código"}
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        {#if facultad.estado}
-                                            <span class="badge bg-success-subtle text-success">
-                                                Activa
-                                            </span>
-                                        {:else}
-                                            <span class="badge bg-danger-subtle text-danger">
-                                                Inactiva
-                                            </span>
-                                        {/if}
-                                    </td>
-
-                                    <td class="text-center">
-                                        <div class="btn-group">
-
-                                            <button
-                                                class="btn btn-sm btn-outline-secondary"
-                                                title="Ver"
-                                                onclick={() => verFacultad(facultad)}
-                                            >
-                                                <i class="bi bi-eye"></i>
-                                            </button>
-
-                                            <button
-                                                class="btn btn-sm btn-outline-primary"
-                                                title="Editar"
-                                                onclick={() => abrirEditarFacultad(facultad)}
-                                            >
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-
-                                            <button
-                                                class="btn btn-sm btn-outline-danger"
-                                                title="Eliminar"
-                                                onclick={() =>
-                                                    confirmarEliminar(
-                                                        facultad,
-                                                        "facultad"
-                                                    )
-                                                }
-                                            >
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-
-                                        </div>
-                                    </td>
+                                    <td colspan="5" class="text-center py-5 text-muted">Cargando facultades...</td>
                                 </tr>
+                            {:else if error}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-danger">{error}</td>
+                                </tr>
+
                             {:else}
-                                <tr>
-                                    <td colspan="5" class="text-center py-5 text-muted">
-                                        No se encontraron facultades.
-                                    </td>
-                                </tr>
-                            {/each}
+                                {#each facultadesFiltradas as facultad (facultad.id_facultad)}
+                                    <tr>
+                                        <td>{facultad.id_facultad}</td>
+
+                                        <td>
+                                            <strong>{facultad.nombre_facultad}</strong>
+                                        </td>
+
+                                        <td>
+                                            <span class="badge bg-light text-dark">
+                                                {facultad.codigo_facultad || "Sin código"}
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            {#if facultad.estado}
+                                                <span class="badge bg-success-subtle text-success">
+                                                    Activa
+                                                </span>
+                                            {:else}
+                                                <span class="badge bg-danger-subtle text-danger">
+                                                    Inactiva
+                                                </span>
+                                            {/if}
+                                        </td>
+
+                                        <td class="text-center">
+                                            <div class="btn-group">
+
+                                                <button
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    title="Ver"
+                                                    onclick={() => verFacultad(facultad)}
+                                                >
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+
+                                                <button
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    title="Editar"
+                                                    onclick={() => abrirEditarFacultad(facultad)}
+                                                >
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+
+                                                <button
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    title="Eliminar"
+                                                    onclick={() =>
+                                                        confirmarEliminar(
+                                                            facultad,
+                                                            "facultad"
+                                                        )
+                                                    }
+                                                >
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {:else}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5 text-muted">
+                                            No se encontraron facultades.
+                                        </td>
+                                    </tr>
+                                {/each}
+                            {/if}
                         </tbody>
 
                     </table>
@@ -461,80 +452,89 @@
                         </thead>
 
                         <tbody>
-                            {#each carrerasFiltradas as carrera}
+                            {#if cargando}
                                 <tr>
-                                    <td>{carrera.id}</td>
-
-                                    <td>
-                                        <strong>{carrera.nombre}</strong>
-                                    </td>
-
-                                    <td>
-                                        <span class="badge bg-light text-dark">
-                                            {carrera.codigo || "Sin código"}
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        {obtenerNombreFacultad(carrera.id_facultad)}
-                                    </td>
-
-                                    <td>
-                                        {#if carrera.estado}
-                                            <span class="badge bg-success-subtle text-success">
-                                                Activa
-                                            </span>
-                                        {:else}
-                                            <span class="badge bg-danger-subtle text-danger">
-                                                Inactiva
-                                            </span>
-                                        {/if}
-                                    </td>
-
-                                    <td class="text-center">
-                                        <div class="btn-group">
-
-                                            <button
-                                                class="btn btn-sm btn-outline-secondary"
-                                                title="Ver"
-                                                onclick={() => verCarrera(carrera)}
-                                            >
-                                                <i class="bi bi-eye"></i>
-                                            </button>
-
-                                            <button
-                                                class="btn btn-sm btn-outline-primary"
-                                                title="Editar"
-                                                onclick={() => abrirEditarCarrera(carrera)}
-                                            >
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-
-                                            <button
-                                                class="btn btn-sm btn-outline-danger"
-                                                title="Eliminar"
-                                                onclick={() =>
-                                                    confirmarEliminar(
-                                                        carrera,
-                                                        "carrera"
-                                                    )
-                                                }
-                                            >
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-
-                                        </div>
-                                    </td>
+                                    <td colspan="5" class="text-center py-5 text-muted"> cargando facultades...</td>
+                                </tr>
+                            {:else if error}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-danger">{error}</td>
                                 </tr>
                             {:else}
-                                <tr>
-                                    <td colspan="6" class="text-center py-5 text-muted">
-                                        No se encontraron carreras.
-                                    </td>
-                                </tr>
-                            {/each}
-                        </tbody>
+                                {#each carrerasFiltradas as carrera (carrera.id_carrera)}
+                                    <tr>
+                                        <td>{carrera.id_carrera}</td>
 
+                                        <td>
+                                            <strong>{carrera.nombre_carrera}</strong>
+                                        </td>
+
+                                        <td>
+                                            <span class="badge bg-light text-dark">
+                                                {carrera.codigo_carrera || "Sin código"}
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            {obtenerNombreFacultad(carrera.id_facultad)}
+                                        </td>
+
+                                        <td>
+                                            {#if carrera.estado}
+                                                <span class="badge bg-success-subtle text-success">
+                                                    Activa
+                                                </span>
+                                            {:else}
+                                                <span class="badge bg-danger-subtle text-danger">
+                                                    Inactiva
+                                                </span>
+                                            {/if}
+                                        </td>
+
+                                        <td class="text-center">
+                                            <div class="btn-group">
+
+                                                <button
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    title="Ver"
+                                                    onclick={() => verCarrera(carrera)}
+                                                >
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+
+                                                <button
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    title="Editar"
+                                                    onclick={() => abrirEditarCarrera(carrera)}
+                                                >
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+
+                                                <button
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    title="Eliminar"
+                                                    onclick={() =>
+                                                        confirmarEliminar(
+                                                            carrera,
+                                                            "carrera"
+                                                        )
+                                                    }
+                                                >
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {:else}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-5 text-muted">
+                                            No se encontraron carreras.
+                                        </td>
+                                    </tr>
+                                {/each}
+                            {/if}
+                        </tbody>
                     </table>
                 </div>
 
@@ -577,7 +577,7 @@
                             type="text"
                             class="form-control"
                             placeholder="Ej. Facultad de Ingeniería"
-                            bind:value={formularioFacultad.nombre}
+                            bind:value={formularioFacultad.nombre_facultad}
                         />
                     </div>
 
@@ -591,7 +591,7 @@
                             type="text"
                             class="form-control"
                             placeholder="Ej. FI"
-                            bind:value={formularioFacultad.codigo}
+                            bind:value={formularioFacultad.codigo_facultad}
                         />
                     </div>
 
@@ -652,9 +652,9 @@
                         >
                             <option value="">Selecciona una facultad</option>
 
-                            {#each facultades as facultad}
-                                <option value={facultad.id}>
-                                    {facultad.nombre}
+                            {#each facultades as facultad (facultad.id_facultad)}
+                                <option value={facultad.id_facultad}>
+                                    {facultad.nombre_facultad}
                                 </option>
                             {/each}
                         </select>
@@ -734,18 +734,18 @@
 
                     <div class="detail-item">
                         <strong>ID:</strong>
-                        <span>{elementoSeleccionado.id}</span>
+                        <span>{elementoSeleccionado.id_facultad}</span>
                     </div>
 
                     <div class="detail-item">
                         <strong>Nombre:</strong>
-                        <span>{elementoSeleccionado.nombre}</span>
+                        <span>{elementoSeleccionado.nombre_facultad}</span>
                     </div>
 
                     <div class="detail-item">
                         <strong>Código:</strong>
                         <span>
-                            {elementoSeleccionado.codigo || "Sin código"}
+                            {elementoSeleccionado.codigo_facultad || "Sin código"}
                         </span>
                     </div>
 
@@ -763,18 +763,18 @@
 
                     <div class="detail-item">
                         <strong>ID:</strong>
-                        <span>{elementoSeleccionado.id}</span>
+                        <span>{elementoSeleccionado.id_carrera}</span>
                     </div>
 
                     <div class="detail-item">
                         <strong>Nombre:</strong>
-                        <span>{elementoSeleccionado.nombre}</span>
+                        <span>{elementoSeleccionado.nombre_carrera}</span>
                     </div>
 
                     <div class="detail-item">
                         <strong>Código:</strong>
                         <span>
-                            {elementoSeleccionado.codigo || "Sin código"}
+                            {elementoSeleccionado.codigo_carrera|| "Sin código"}
                         </span>
                     </div>
 
@@ -849,7 +849,7 @@
                 </h5>
 
                 <p class="text-muted mb-0">
-                    {elementoSeleccionado.nombre}
+                    {elementoSeleccionado.nombre_facultad}
                 </p>
 
                 {#if tipoFormulario === "facultad"}

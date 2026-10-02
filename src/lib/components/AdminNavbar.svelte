@@ -19,7 +19,8 @@
 		{ id: 'usuarios', name: 'Usuarios', icon: 'bi-grid-1x2-fill', href: '/admin/usuarios' },
 		{ id: 'roles', name: 'Roles', icon: 'bi-journal-text', href: '/admin/roles' },
 		{ id: 'trabajos-grado', name: 'Trabajos de Grado', icon: 'bi-folder2-open', href: '/admin/trabajos-grado' },
-		{ id: 'facultades', name: 'Facultades & Carreras', icon: 'bi-building', href: '/admin/facultades-carreras' }
+		{ id: 'facultades', name: 'Facultades & Carreras', icon: 'bi-building', href: '/admin/facultades-carreras' },
+		
 	];
 
 	const menuProfesores = [
