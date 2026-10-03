@@ -1,13 +1,17 @@
 <script>
 
+    //importas el onMount y los endpoint que necesitas
     import {onMount} from 'svelte';
     import {getFacultades, getCarreras} from '$lib/api';
 
+    //variables para guardar lo que obtengas del endpoint
     let facultades = $state([]);
     let carreras = $state([]);
     let cargando = $state(true);
     let error = $state(null);
 
+    //función asincronica que va si o si para obtener cuando se cumpla la promesa del fetch(en este caso, van las rutas que necesitas utilizar, por ejemplo,
+    //aquí utilizo getFacultades y getCarreras)
     onMount(async () => {
         const [resFacultades, resCarreras] = await Promise.allSettled([
             getFacultades(),
@@ -351,15 +355,17 @@
                         </thead>
 
                         <tbody>
+                        <!-- condicional necesario para que aparezca en la pantalla 'cargando' mientras llega la respuesta de la API -->
                             {#if cargando}
                                 <tr>
                                     <td colspan="5" class="text-center py-5 text-muted">Cargando facultades...</td>
                                 </tr>
+                            <!-- condicional por si da error -->
                             {:else if error}
                                 <tr>
                                     <td colspan="5" class="text-center py-5 text-danger">{error}</td>
                                 </tr>
-
+                                <!-- el condicional para que cuando ya tenga la respuesta de la API, renderice todo en el frontend -->
                             {:else}
                                 {#each facultadesFiltradas as facultad (facultad.id_facultad)}
                                     <tr>

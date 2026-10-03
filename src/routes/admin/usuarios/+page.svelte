@@ -1,8 +1,10 @@
 <script>
 
+  //importas el onMount y los endpoint que necesitas
   import {onMount} from 'svelte';
   import {getUsuarios, getRoles, getCarreras} from '$lib/api'
 
+  //variables para guardar lo que obtengas del endpoint
   let usuarios = $state([]);
   let roles = $state([]);
   let carreras = $state([]);
@@ -14,6 +16,8 @@
   let filtroEstado = $state("todos");
 
 
+    //función asincronica que va si o si para obtener cuando se cumpla la promesa del fetch(en este caso, van las rutas que necesitas utilizar, por ejemplo,
+    //aquí utilizo getFacultades y getCarreras)
   onMount(async () => {
     const [resUsuarios, resRoles, resCarreras] = await Promise.allSettled([
       getUsuarios(),
@@ -146,21 +150,25 @@
           </tr>
         </thead>
         <tbody>
+          <!-- condicional necesario para que aparezca en la pantalla 'cargando' mientras llega la respuesta de la API -->
           {#if cargando}
             <tr>
               <td colspan="7" class="text-center text-muted py-4">Cargando usuarios</td>
             </tr>
+          <!-- condicional por si da error -->
           {:else if error}
             <tr>
               <td colspan="7" class="text-center text-danger py-4">{error}</td>
             </tr>
 
+          <!-- condicional por si no se encuentra ningún dato parecido a la busqueda que hiciste con los filtros -->
           {:else if usuariosFiltrados.length === 0}
             <tr>
               <td colspan="7" class="text-center text-muted py-4">
                 No se encontraron usuarios con esos filtros.
               </td>
             </tr>
+            <!-- el condicional para que cuando ya tenga la respuesta de la API, renderice todo en el frontend -->
           {:else}
             {#each usuariosFiltrados as u (u.id_user)}
               <tr>

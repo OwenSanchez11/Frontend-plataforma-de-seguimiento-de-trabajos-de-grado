@@ -1,15 +1,16 @@
 
 <script>
+    //importas el onMount y los endpoint que necesitas
+    import {onMount} from 'svelte';
+    import {getTrabajos, getCarreras} from '$lib/api';
+
+    
     let filtroEstado = $state('');
     let filtroPrograma = $state('');
     let filtroPeriodo = $state('');
 
 
-    let trabajosGrado = $state([
-        { id: 1, titulo: 'Sistema de Inventarios', estudiante: 'Juan Pérez', estado: 'pendiente' },
-        { id: 2, titulo: 'App Móvil de Turismo', estudiante: 'Ana Gómez', estado: 'aprobado' },
-        { id: 3, titulo: 'Plataforma de E-learning', estudiante: 'Pedro Díaz', estado: 'rechazado' }
-    ]);
+    let trabajosGrado = $state([]);
 
 
     function aprobar(trabajo) {
