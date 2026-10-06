@@ -17,7 +17,7 @@ export const getTrabajos = () => get('/trabajo_grado/');
 export const getTrabajoPorId = (id) => get(`/trabajo_grado/${id}/`);
 export const getCarreras = () => get('/carreras/');
 export const getUsuarios = () => get('/usuarios/');
-export const getRoles = () => get('/rol');
+export const getRoles = () => get('/rol/');
 export const getFacultades = () => get("/facultades/");
 export const getModulos = () => get("/modulos/");
 export const getModulosRol = () => get("/modulo-rol/")
@@ -45,9 +45,9 @@ export const getAvances = ({ idTrabajo = '' } = {}) => {
 }
 
 
-//función para el post
+//función génerica para poder hacer post, put y delete
 
-async function post(ruta) {
+async function request(ruta, metodo, datos = null) {
     const res = await fetch(`${PUBLIC_API_URL}${ruta}`, {
         method: metodo,
         headers: { 'Content-type': 'application/json' },
@@ -55,10 +55,22 @@ async function post(ruta) {
     })
 
     if (!res.ok) {
-        throw new Error(`Error ${res.status} en ${metodo} ${ruta}`);
+        const error = await res.json().catch(() => null);
+        throw new Error(
+            typeof error?.detail ==='string' ? error.detail : `Error ${res.status} en ${metodo} ${ruta}`
+        )
     }
 
     return res.status === 204 ? null : res.json();
 
 }
 
+// funciones para llamar al POST
+export const crearFacultad = (datos) => request('/facultades/', 'POST', datos);
+export const crearCarrera = (datos) => request('/carreras/', 'POST', datos);
+
+
+//funciones para el put aquí
+
+
+//funciones para delete aquí

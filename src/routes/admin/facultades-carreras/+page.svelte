@@ -2,13 +2,15 @@
 
     //importas el onMount y los endpoint que necesitas
     import {onMount} from 'svelte';
-    import {getFacultades, getCarreras} from '$lib/api';
+    import {getFacultades, getCarreras, crearFacultad, crearCarrera} from '$lib/api';
 
     //variables para guardar lo que obtengas del endpoint
     let facultades = $state([]);
     let carreras = $state([]);
     let cargando = $state(true);
     let error = $state(null);
+    let guardando = $state(false);
+    let errorFormulario = $state('');
 
     //función asincronica que va si o si para obtener cuando se cumpla la promesa del fetch(en este caso, van las rutas que necesitas utilizar, por ejemplo,
     //aquí utilizo getFacultades y getCarreras)
@@ -85,6 +87,7 @@
     }
 
     function abrirNuevaFacultad() {
+        errorFormulario = '';
         modoEdicion = false;
         tipoFormulario = "facultad";
 
@@ -99,6 +102,7 @@
     }
 
     function abrirNuevaCarrera() {
+        errorFormulario = '';
         modoEdicion = false;
         tipoFormulario = "carrera";
 
@@ -154,75 +158,60 @@
         mostrarDetalle = true;
     }
 
-    function guardarFacultad() {
+    async function guardarFacultad() {
+        //si no colocas el nombre de la facultad da error
         if (!formularioFacultad.nombre.trim()) {
-            alert("Ingresa el nombre de la facultad.");
+            errorFormulario = "Ingresa el nombre de la facultad.";
             return;
         }
 
-        if (modoEdicion) {
-            const indice = facultades.findIndex(
-                (item) => item.id_facultad === formularioFacultad.id_facultad
-            );
+        if (modoEdicion) return;
 
-            if (indice !== -1) {
-                facultades[indice] = {
-                    ...formularioFacultad
-                };
-            }
-        } else {
-            const nuevoId =
-                facultades.length > 0
-                    ? Math.max(...facultades.map((item) => item.id)) + 1
-                    : 1;
+        guardando = true;
+        errorFormulario = '';
 
-            facultades.push({
-                id: nuevoId,
-                nombre: formularioFacultad.nombre,
-                codigo: formularioFacultad.codigo,
+        try {
+            //llamas a la función que conecta con el endpoint, aquí lo que hacemos es convertir los datos que obtenemos del formulario con el nombre que tenemos en la DB de los parametros
+            await crearFacultad({
+                nombre_facultad: formularioFacultad.nombre.trim(),
+                codigo_facultad: formularioFacultad.codigo.trim() || null,
                 estado: formularioFacultad.estado
             });
+            facultades = await getFacultades();
+            cerrarFormulario();
+        } catch (e) {
+            errorFormulario = e.message;
+        } finally {
+            guardando = false;
         }
-
-        cerrarFormulario();
     }
 
-    function guardarCarrera() {
-        if (
-            !formularioCarrera.nombre.trim() ||
-            !formularioCarrera.id_facultad
-        ) {
-            alert("Completa los campos obligatorios.");
+    async function guardarCarrera() {
+        //si no colocas el nombre de la carrera da error
+        if (!formularioCarrera.nombre.trim() || !formularioCarrera.id_facultad) {
+            errorFormulario = "Completa los campos obligatorios";
             return;
         }
 
-        if (modoEdicion) {
-            const indice = carreras.findIndex(
-                (item) => item.id === formularioCarrera.id
-            );
+        if (modoEdicion) return;
+        guardando = true;
+        errorFormulario = '';
 
-            if (indice !== -1) {
-                carreras[indice] = {
-                    ...formularioCarrera,
-                    id_facultad: Number(formularioCarrera.id_facultad)
-                };
-            }
-        } else {
-            const nuevoId =
-                carreras.length > 0
-                    ? Math.max(...carreras.map((item) => item.id)) + 1
-                    : 1;
-
-            carreras.push({
-                id: nuevoId,
+        try {
+            //llamas a la función que conecta con el endpoint, aquí lo que hacemos es convertir los datos que obtenemos del formulario con el nombre que tenemos en la DB de los parametros
+            await crearCarrera({
+                nombre_carrera: formularioCarrera.nombre.trim(),
+                codigo_carrera: formularioCarrera.codigo?.trim() || null,
                 id_facultad: Number(formularioCarrera.id_facultad),
-                nombre: formularioCarrera.nombre,
-                codigo: formularioCarrera.codigo,
                 estado: formularioCarrera.estado
             });
+            carreras = await getCarreras();
+            cerrarFormulario();
+        } catch (e) {
+            errorFormulario = e.message;
+        } finally {
+            guardando = false;
         }
-
-        cerrarFormulario();
     }
 
     function confirmarEliminar(elemento, tipo) {
@@ -254,6 +243,7 @@
 
     function cerrarFormulario() {
         mostrarFormulario = false;
+        errorFormulario = '';
     }
 
     function cerrarDetalle() {
@@ -571,6 +561,12 @@
 
             <div class="modal-body-custom">
 
+                <!-- condicional por si nos da error algo -->
+                {#if errorFormulario} 
+                    <div class="alert alert-danger py-2">{errorFormulario}</div>
+                {/if}
+
+                <!-- condicional para saber el tipo del formulario, en caso de estar en el de facultad, será el formulario de facultad -->
                 {#if tipoFormulario === "facultad"}
 
                     <div class="mb-3">
@@ -583,7 +579,7 @@
                             type="text"
                             class="form-control"
                             placeholder="Ej. Facultad de Ingeniería"
-                            bind:value={formularioFacultad.nombre_facultad}
+                            bind:value={formularioFacultad.nombre}
                         />
                     </div>
 
@@ -597,7 +593,7 @@
                             type="text"
                             class="form-control"
                             placeholder="Ej. FI"
-                            bind:value={formularioFacultad.codigo_facultad}
+                            bind:value={formularioFacultad.codigo}
                         />
                     </div>
 
@@ -617,6 +613,7 @@
                     </div>
 
                 {:else}
+                <!-- si no es el formulario facultad, entonces nos encontramos en el formulario de crear carreras -->
 
                     <div class="mb-3">
                         <label for="nombre-carrera" class="form-label">
@@ -694,8 +691,10 @@
                     Cancelar
                 </button>
 
+                <!-- botón para guardar los datos, y según el formulario o guarda facultades o guarda carreras -->
                 <button
                     class="btn btn-primary"
+                    disabled={guardando}
                     onclick={() =>
                         tipoFormulario === "facultad"
                             ? guardarFacultad()
@@ -703,7 +702,7 @@
                     }
                 >
                     <i class="bi bi-check-lg me-2"></i>
-                    Guardar
+                    {guardando ? "Guardando..." : "Guardar"}
                 </button>
 
             </div>
