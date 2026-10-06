@@ -1,57 +1,20 @@
 <script>
+
+    import {onMount} from 'svelte';
+    import {getTrabajos} from '$lib/api'
+
+
+    let entregas = $state([]);
+    let avances = $state([]);
+
+
     let busqueda = $state('');
     let mostrarModal = $state(false);
     let mostrarModalVer = $state(false);
     let modoEdicion = $state(false);
     let entregaSeleccionada = $state(null);
 
-    let entregas = $state([
-        {
-            id_entrega: 1,
-            id_avances: 1,
-            numero_version: 1,
-            nombre_archivo: 'planteamiento_proyecto.pdf',
-            ruta_archivo: '/archivos/entregas/planteamiento_proyecto.pdf',
-            comentarios: 'Entrega realizada correctamente.',
-            estado: true,
-            fecha_entrega: '2026-03-09T14:30'
-        },
-        {
-            id_entrega: 2,
-            id_avances: 2,
-            numero_version: 2,
-            nombre_archivo: 'diseno_solucion.pdf',
-            ruta_archivo: '/archivos/entregas/diseno_solucion.pdf',
-            comentarios: 'Se entrega segunda versión con correcciones solicitadas.',
-            estado: true,
-            fecha_entrega: '2026-04-14T16:45'
-        },
-        {
-            id_entrega: 3,
-            id_avances: 3,
-            numero_version: 3,
-            nombre_archivo: 'implementacion_sistema.zip',
-            ruta_archivo: '/archivos/entregas/implementacion_sistema.zip',
-            comentarios: 'Entrega pendiente de revisión por parte del coordinador.',
-            estado: false,
-            fecha_entrega: '2026-05-21T10:15'
-        }
-    ]);
 
-    let avances = $state([
-        {
-            id_avance: 1,
-            titulo: 'Planteamiento del proyecto'
-        },
-        {
-            id_avance: 2,
-            titulo: 'Diseño de la solución'
-        },
-        {
-            id_avance: 3,
-            titulo: 'Implementación del sistema'
-        }
-    ]);
 
     let formulario = $state({
         id_entrega: null,

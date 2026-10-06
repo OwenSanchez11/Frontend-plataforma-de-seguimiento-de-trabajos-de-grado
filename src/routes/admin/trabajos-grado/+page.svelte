@@ -1,17 +1,21 @@
 <script>
 
   import {onMount} from 'svelte';
-  import {getTrabajos, getCarreras} from '$lib/api'
+  import {getTrabajos, getCarreras, getFacultades} from '$lib/api'
  
   let trabajos = $state([]);
   let carreras = $state([]);
+  let facultades = $state([]);
+  let idFacultad = $state("");
+  let idCarrera = $state("");
   let cargando = $state(true);
   let error = $state(null);
 
   onMount(async () => {
-    const [resTrabajos, resCarreras] = await Promise.allSettled([
+    const [resTrabajos, resCarreras, resFacultades] = await Promise.allSettled([
       getTrabajos(),
-      getCarreras()
+      getCarreras(),
+      getFacultades()
     ]);
     if (resTrabajos.status === 'fulfilled') {
       trabajos = resTrabajos.value;
@@ -28,8 +32,13 @@
       error = resCarreras.reason.message;
     }
 
-    console.log(Object.keys(trabajos[0]));
-    console.log($state.snapshot(carreras[0]));  
+    if (resFacultades.status === 'fulfilled') {
+      facultades = resFacultades.value;
+    } else {
+      console.error(resFacultades.reason);
+      error = resFacultades.reason.message;
+    }
+
     cargando = false;
 
 
@@ -56,18 +65,35 @@
     estado: true
   });
 
+  let carrerasFiltradas = $derived(
+    idFacultad
+      ? carreras.filter((carrera) => Number(carrera.id_facultad) === Number(idFacultad))
+      : carreras
+  );
+
   let trabajosFiltrados = $derived(
     trabajos.filter((trabajo) => {
       const texto = busqueda.toLowerCase();
-
-      return (
+      const carreraTrabajo = carreras.find(
+        (carrera) => Number(carrera.id_carrera) === Number(trabajo.id_carrera)
+      );
+      const coincideFacultad = !idFacultad ||
+        Number(carreraTrabajo?.id_facultad) === Number(idFacultad);
+      const coincideCarrera = !idCarrera ||
+        Number(trabajo.id_carrera) === Number(idCarrera);
+      const coincideBusqueda =
         (trabajo.titulo ?? "").toLowerCase().includes(texto) ||
         (trabajo.resumen ?? "").toLowerCase().includes(texto) ||
         (trabajo.estado_tramite ?? "").toLowerCase().includes(texto) ||
-        obtenerNombreCarrera(trabajo.id_carrera).toLowerCase().includes(texto)
-      );
+        obtenerNombreCarrera(trabajo.id_carrera).toLowerCase().includes(texto);
+
+      return coincideFacultad && coincideCarrera && coincideBusqueda;
     })
   );
+
+  function cambiarFacultad() {
+    idCarrera = "";
+  }
 
   function obtenerNombreCarrera(id_carrera) {
     const carrera = carreras.find(
@@ -360,13 +386,9 @@
 
                 <td class="text-end">
 
-                  <button
-                    class="btn btn-sm btn-light rounded-circle me-1"
-                    title="Ver detalles"
-                    onclick={() => verTrabajo(trabajo)}
-                  >
+                  <a href={`/admin/trabajos-grado/${trabajo.id_trabajo_grado}`} class="btn btn-sm btn-light" title="Ver detalles">
                     <i class="bi bi-eye"></i>
-                  </button>
+                  </a>
 
 
                   <button

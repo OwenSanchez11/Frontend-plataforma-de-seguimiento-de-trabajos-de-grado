@@ -1,4 +1,20 @@
 <script>
+
+	import {onMount} from 'svelte';
+	import { getEvaluaciones, getCarreras, getFacultades, getTrabajos, getUsuarios } from '$lib/api';
+
+	let evaluaciones = $state([]);
+	let facultades = $state([]);
+	let carreras = $state([]);
+	let trabajosGrado = $state([]);
+	let usuarios = $state([]);
+
+
+	let idFacultad= $state('');
+	let idCarrera = $state('');
+	let cargando = $state(false);
+	let error = $state('');
+
 	let busqueda = $state('');
 	let modalAbierto = $state(false);
 	let modalVer = $state(false);
@@ -7,6 +23,68 @@
 
 	let evaluacionSeleccionada = $state(null);
 	let evaluacionAEliminar = $state(null);
+
+	let carrerasFiltradas = $derived(
+		idFacultad ? carreras.filter((c) => c.id_facultad === Number(idFacultad)) : carreras 
+	);
+
+	async function cargarEvaluaciones() {
+		cargando = true;
+		error = '';
+		try{
+			evaluaciones = await getEvaluaciones({ idFacultad, idCarrera });
+		} catch(e) {
+			error = 'No se pudieron cargar las evaluaciones';
+			console.error(e);
+		} finally {
+			cargando = false;
+		}
+	}
+
+	function cambiarFacultad() {
+		idCarrera = '';
+		cargarEvaluaciones();
+	}
+ 
+	onMount(async () => {
+		cargarEvaluaciones();
+
+		const [resFacultades, resCarreras, resTrabajos, resUsuarios] = await Promise.allSettled([
+			getFacultades(),
+			getCarreras(),
+			getTrabajos(),
+			getUsuarios()
+		]);
+
+		if (resFacultades.status === 'fulfilled') {
+		facultades = resFacultades.value;
+		} else {
+			console.error(resFacultades.reason);
+			error = 'No se pudieron cargar las facultades.';
+		}
+
+		if (resCarreras.status === 'fulfilled') {
+		carreras = resCarreras.value;
+		} else {
+			console.error(resCarreras.reason);
+			error = 'No se pudieron cargar las carreras.';
+		}
+
+		if (resTrabajos.status === 'fulfilled') {
+			trabajosGrado = resTrabajos.value;
+		} else {
+			console.error(resTrabajos.reason);
+			error = 'No se pudieron cargar los trabajos de grado.';
+		}
+
+		if (resUsuarios.status === 'fulfilled') {
+			usuarios = resUsuarios.value;
+		} else {
+			console.error(resUsuarios.reason);
+			error = 'No se pudieron cargar los usuarios.';
+		}
+
+	});
 
 	let formulario = $state({
 		id_evaluacion: null,
@@ -18,69 +96,6 @@
 		fecha_evaluacion: '',
 		estado: true
 	});
-
-	let evaluaciones = $state([
-		{
-			id_evaluacion: 1,
-			id_trabajo_grado: 1,
-			id_usuario: 15,
-			nota: 4.5,
-			veredicto: 'Aprobado',
-			observaciones: 'El trabajo cumple con los objetivos establecidos.',
-			fecha_evaluacion: '2026-06-10',
-			estado: true
-		},
-		{
-			id_evaluacion: 2,
-			id_trabajo_grado: 2,
-			id_usuario: 18,
-			nota: 3.8,
-			veredicto: 'Aprobado con observaciones',
-			observaciones: 'Se recomienda mejorar la documentación del proyecto.',
-			fecha_evaluacion: '2026-06-15',
-			estado: true
-		},
-		{
-			id_evaluacion: 3,
-			id_trabajo_grado: 3,
-			id_usuario: 21,
-			nota: 2.9,
-			veredicto: 'No aprobado',
-			observaciones: 'El trabajo requiere ajustes antes de una nueva evaluación.',
-			fecha_evaluacion: '2026-06-20',
-			estado: false
-		}
-	]);
-
-	let trabajosGrado = $state([
-		{
-			id: 1,
-			titulo: 'Sistema de seguimiento de trabajos de grado'
-		},
-		{
-			id: 2,
-			titulo: 'Plataforma web para gestión académica'
-		},
-		{
-			id: 3,
-			titulo: 'Sistema de gestión de proyectos'
-		}
-	]);
-
-	let usuarios = $state([
-		{
-			id: 15,
-			nombre: 'Carlos Rodríguez'
-		},
-		{
-			id: 18,
-			nombre: 'María González'
-		},
-		{
-			id: 21,
-			nombre: 'Andrés Martínez'
-		}
-	]);
 
 	let evaluacionesFiltradas = $derived(
 		evaluaciones.filter((evaluacion) => {
@@ -100,12 +115,12 @@
 	);
 
 	function obtenerTituloTrabajo(id) {
-		const trabajo = trabajosGrado.find((item) => item.id === Number(id));
+		const trabajo = trabajosGrado.find((item) => item.id_trabajo_grado === Number(id));
 		return trabajo ? trabajo.titulo : `Trabajo #${id}`;
 	}
 
 	function obtenerNombreUsuario(id) {
-		const usuario = usuarios.find((item) => item.id === Number(id));
+		const usuario = usuarios.find((item) => item.id_usuario === Number(id));
 		return usuario ? usuario.nombre : `Usuario #${id}`;
 	}
 
@@ -264,7 +279,7 @@
 		<div class="card-body">
 			<div class="row g-3 align-items-center">
 
-				<div class="col-12 col-md-6">
+				<div class="col-12 col-md-4">
 					<div class="input-group">
 						<span class="input-group-text bg-light border-end-0">
 							<i class="bi bi-search text-muted"></i>
@@ -279,12 +294,35 @@
 					</div>
 				</div>
 
-				<div class="col-12 col-md-6 text-md-end">
-					<span class="text-muted small">
-						{evaluacionesFiltradas.length} evaluación(es)
-					</span>
+				<div class="col-6 col-md-3">
+					<select 
+						class="form-select" 
+						aria-label="Filtrar por facultad" 
+						bind:value={idFacultad} 
+						onchange={cambiarFacultad}
+					>
+						<option value="">Todas las facultades</option>
+						{#each facultades as f}
+							<option value={f.id_facultad}>{f.nombre_facultad}</option>
+						{/each}
+					</select>
 				</div>
 
+				<div class="col-6 col-md-3">
+					<select class="form-select" aria-label="filtrar por carreras" bind:value={idCarrera} onchange={cargarEvaluaciones}>
+						<option value="">Todas las carreras</option>
+						{#each carrerasFiltradas as c}
+							<option value={c.id_carrera}>{c.nombre_carrera}</option>
+						{/each}
+					</select>
+				</div>
+
+
+				<div class="col-12 col-md-2 text-md-end">
+					<span class="text-muted small">
+						{evaluacionesFiltradas.length} evaluacion(es)
+					</span>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -309,110 +347,112 @@
 					</thead>
 
 					<tbody>
-						{#if evaluacionesFiltradas.length > 0}
-
-							{#each evaluacionesFiltradas as evaluacion}
-								<tr>
-
-									<td class="px-3 fw-semibold">
-										#{evaluacion.id_evaluacion}
-									</td>
-
-									<td>
-										<div class="fw-semibold text-dark">
-											{obtenerTituloTrabajo(evaluacion.id_trabajo_grado)}
-										</div>
-
-										<small class="text-muted">
-											ID trabajo: {evaluacion.id_trabajo_grado}
-										</small>
-									</td>
-
-									<td>
-										<div class="fw-semibold">
-											{obtenerNombreUsuario(evaluacion.id_usuario)}
-										</div>
-
-										<small class="text-muted">
-											ID usuario: {evaluacion.id_usuario}
-										</small>
-									</td>
-
-									<td>
-										<span class="fw-bold fs-6 {obtenerClaseNota(evaluacion.nota)}">
-											{evaluacion.nota}
-										</span>
-										<span class="text-muted"> / 5.0</span>
-									</td>
-
-									<td>
-										{#if evaluacion.veredicto}
-											<span class="badge bg-primary-subtle text-primary">
-												{evaluacion.veredicto}
-											</span>
-										{:else}
-											<span class="text-muted">Sin veredicto</span>
-										{/if}
-									</td>
-
-									<td>
-										{evaluacion.fecha_evaluacion || 'Sin fecha'}
-									</td>
-
-									<td>
-										<span class="badge {obtenerClaseEstado(evaluacion.estado)}">
-											{obtenerTextoEstado(evaluacion.estado)}
-										</span>
-									</td>
-
-									<td class="text-end px-3">
-										<div class="d-flex justify-content-end gap-1">
-
-											<button
-												type="button"
-												class="btn btn-sm btn-light"
-												title="Ver"
-												onclick={() => verEvaluacion(evaluacion)}
-											>
-												<i class="bi bi-eye"></i>
-											</button>
-
-											<button
-												type="button"
-												class="btn btn-sm btn-light"
-												title="Editar"
-												onclick={() => abrirEditarEvaluacion(evaluacion)}
-											>
-												<i class="bi bi-pencil"></i>
-											</button>
-
-											<button
-												type="button"
-												class="btn btn-sm btn-light text-danger"
-												title="Eliminar"
-												onclick={() => confirmarEliminar(evaluacion)}
-											>
-												<i class="bi bi-trash"></i>
-											</button>
-
-										</div>
-									</td>
-
-								</tr>
-							{/each}
-
-						{:else}
-
+						{#if cargando}
 							<tr>
-								<td colspan="8" class="text-center py-5">
-									<div class="text-muted">
-										<i class="bi bi-clipboard-x fs-1 d-block mb-2"></i>
-										No se encontraron evaluaciones.
-									</div>
+								<td colspan="8" class="text-center py-5 text-muted">Cargando evaluaciones...</td>
+							</tr>
+						{:else if error}
+							<tr>
+								<td colspan="8" class="text-center py-5 text-danger">{error}</td>
+							</tr>
+						{:else if evaluacionesFiltradas.length === 0}
+							<tr>
+								<td colspan="8" class="text-center text-muted py-4">
+									No se encontraron evaluaciones con esos filtros.
 								</td>
 							</tr>
+						{:else}
+								{#each evaluacionesFiltradas as evaluacion}
+									<tr>
 
-						{/if}
+										<td class="px-3 fw-semibold">
+											#{evaluacion.id_evaluacion}
+										</td>
+
+										<td>
+											<div class="fw-semibold text-dark">
+												{obtenerTituloTrabajo(evaluacion.id_trabajo_grado)}
+											</div>
+
+											<small class="text-muted">
+												ID trabajo: {evaluacion.id_trabajo_grado}
+											</small>
+										</td>
+
+										<td>
+											<div class="fw-semibold">
+												{obtenerNombreUsuario(evaluacion.id_usuario)}
+											</div>
+
+											<small class="text-muted">
+												ID usuario: {evaluacion.id_usuario}
+											</small>
+										</td>
+
+										<td>
+											<span class="fw-bold fs-6 {obtenerClaseNota(evaluacion.nota)}">
+												{evaluacion.nota}
+											</span>
+											<span class="text-muted"> / 5.0</span>
+										</td>
+
+										<td>
+											{#if evaluacion.veredicto}
+												<span class="badge bg-primary-subtle text-primary">
+													{evaluacion.veredicto}
+												</span>
+											{:else}
+												<span class="text-muted">Sin veredicto</span>
+											{/if}
+										</td>
+
+										<td>
+											{evaluacion.fecha_evaluacion || 'Sin fecha'}
+										</td>
+
+										<td>
+											<span class="badge {obtenerClaseEstado(evaluacion.estado)}">
+												{obtenerTextoEstado(evaluacion.estado)}
+											</span>
+										</td>
+
+										<td class="text-end px-3">
+											<div class="d-flex justify-content-end gap-1">
+
+												<button
+													type="button"
+													class="btn btn-sm btn-light"
+													title="Ver"
+													onclick={() => verEvaluacion(evaluacion)}
+												>
+													<i class="bi bi-eye"></i>
+												</button>
+
+												<button
+													type="button"
+													class="btn btn-sm btn-light"
+													title="Editar"
+													onclick={() => abrirEditarEvaluacion(evaluacion)}
+												>
+													<i class="bi bi-pencil"></i>
+												</button>
+
+												<button
+													type="button"
+													class="btn btn-sm btn-light text-danger"
+													title="Eliminar"
+													onclick={() => confirmarEliminar(evaluacion)}
+												>
+													<i class="bi bi-trash"></i>
+												</button>
+
+											</div>
+										</td>
+
+									</tr>
+								{/each}
+							{/if}
+
 					</tbody>
 
 				</table>

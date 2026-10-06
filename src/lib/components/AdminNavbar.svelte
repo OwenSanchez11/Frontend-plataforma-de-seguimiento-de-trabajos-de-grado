@@ -21,8 +21,6 @@
 		{ id: 'trabajos-grado', name: 'Trabajos de Grado', icon: 'bi-folder2-open', href: '/admin/trabajos-grado' },
 		{ id: 'facultades', name: 'Facultades & Carreras', icon: 'bi-building', href: '/admin/facultades-carreras' },
 		{ id: 'evaluaciones', name: 'Evaluaciones', icon: 'bi-clipboard-check', href: '/admin/evaluaciones' },
-		{ id: 'avances', name: 'Avances', icon: 'bi-graph-up-arrow', href: '/admin/avances' },
-		{ id: 'entregas', name: 'Entregas', icon: 'bi-cloud-arrow-up', href: '/admin/entregas' }
 	];
 
 	const menuProfesores = [
