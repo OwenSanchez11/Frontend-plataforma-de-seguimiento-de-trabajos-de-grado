@@ -1,14 +1,14 @@
 <script>
 
 	import {onMount} from 'svelte';
-	import { getEvaluaciones, getCarreras, getFacultades, getTrabajos, getUsuarios } from '$lib/api';
+	import { getEvaluaciones, getCarreras, getFacultades, getTrabajos, getUsuarios, crearEvaluacion, editarEvaluacion } from '$lib/api';
 
 	let evaluaciones = $state([]);
 	let facultades = $state([]);
 	let carreras = $state([]);
 	let trabajosGrado = $state([]);
 	let usuarios = $state([]);
-
+	let guardando = $state(false);
 
 	let idFacultad= $state('');
 	let idCarrera = $state('');
@@ -83,6 +83,8 @@
 			console.error(resUsuarios.reason);
 			error = 'No se pudieron cargar los usuarios.';
 		}
+		console.log('trabajo ejemplo:', trabajosGrado[0]);
+		console.log('usuario ejemplo:', usuarios[0]);
 
 	});
 
@@ -120,7 +122,7 @@
 	}
 
 	function obtenerNombreUsuario(id) {
-		const usuario = usuarios.find((item) => item.id_usuario === Number(id));
+		const usuario = usuarios.find((item) => item.id_user === Number(id));
 		return usuario ? usuario.nombre : `Usuario #${id}`;
 	}
 
@@ -186,11 +188,13 @@
 		evaluacionSeleccionada = null;
 	}
 
-	function guardarEvaluacion() {
+	async function guardarEvaluacion() {
+		console.log('formulario:', $state.snapshot(formulario));
 		if (
 			!formulario.id_trabajo_grado ||
 			!formulario.id_usuario ||
-			formulario.nota === ''
+			formulario.nota === '' ||
+			formulario.nota == null
 		) {
 			alert('Completa los campos obligatorios.');
 			return;
@@ -203,35 +207,51 @@
 			return;
 		}
 
-		if (modoEdicion) {
-			const indice = evaluaciones.findIndex(
-				(item) => item.id_evaluacion === formulario.id_evaluacion
-			);
+		const datos = {
+			id_trabajo_grado: Number(formulario.id_trabajo_grado),
+			id_usuario: Number(formulario.id_usuario),
+			nota,
+			veredicto: formulario.veredicto || null,
+			observaciones: formulario.observaciones || null,
+			fecha_evaluacion: formulario.fecha_evaluacion || null,
+			estado: formulario.estado
 
-			if (indice !== -1) {
-				evaluaciones[indice] = {
-					...formulario,
-					id_trabajo_grado: Number(formulario.id_trabajo_grado),
-					id_usuario: Number(formulario.id_usuario),
-					nota: nota
-				};
-			}
-		} else {
-			const nuevoId =
-				evaluaciones.length > 0
-					? Math.max(...evaluaciones.map((item) => item.id_evaluacion)) + 1
-					: 1;
-
-			evaluaciones.push({
-				...formulario,
-				id_evaluacion: nuevoId,
-				id_trabajo_grado: Number(formulario.id_trabajo_grado),
-				id_usuario: Number(formulario.id_usuario),
-				nota: nota
-			});
 		}
 
-		cerrarModal();
+		guardando = true;
+
+		try {
+			if(modoEdicion) {
+				await editarEvaluacion(formulario.id_evaluacion, datos);
+			} else{
+				await crearEvaluacion(datos);
+			}
+			await cargarEvaluaciones();
+			cerrarModal();
+		} catch (error) {
+			console.error(error);
+			alert(error.message || 'No se pudo guardar la evaluación.');
+		} finally {
+			guardando = false;
+		}
+	}
+
+	async function desactivarEvaluacion() {
+		if (!evaluacionAEliminar) return;
+
+		try {
+			await editarEvaluacion(evaluacionAEliminar.id_evaluacion, {
+				...evaluacionAEliminar,
+				estado:false
+			
+			});
+			await cargarEvaluaciones();
+			cerrarModalEliminar();
+				
+		} catch (error) {
+			console.error(e);
+			alert(e.message || 'No se pudo desactivar la evaluación.');
+		}
 	}
 
 	function confirmarEliminar(evaluacion) {
@@ -507,7 +527,7 @@
 								<option value="">Seleccionar trabajo...</option>
 
 								{#each trabajosGrado as trabajo}
-									<option value={trabajo.id}>
+									<option value={trabajo.id_trabajo_grado}>
 										{trabajo.titulo}
 									</option>
 								{/each}
@@ -527,7 +547,7 @@
 								<option value="">Seleccionar usuario...</option>
 
 								{#each usuarios as usuarioItem}
-									<option value={usuarioItem.id}>
+									<option value={usuarioItem.id_user}>
 										{usuarioItem.nombre}
 									</option>
 								{/each}
@@ -633,9 +653,10 @@
 						type="button"
 						class="btn btn-primary"
 						onclick={guardarEvaluacion}
+						disabled={guardando}
 					>
 						<i class="bi bi-check-lg me-1"></i>
-						{modoEdicion ? 'Guardar cambios' : 'Crear evaluación'}
+						{guardando ? 'Guardando...' : modoEdicion ? 'Guardar cambios' : 'Crear evaluación'}
 					</button>
 				</div>
 
@@ -805,7 +826,7 @@
 
 				<div class="modal-header">
 					<h5 class="modal-title fw-bold">
-						Eliminar evaluación
+						Desactivar evaluación
 					</h5>
 
 					<button
@@ -823,12 +844,12 @@
 					</div>
 
 					<h5 class="fw-bold">
-						¿Deseas eliminar esta evaluación?
+						¿Deseas desactivar esta evaluación?
 					</h5>
 
 					<p class="text-muted mb-0">
-						La evaluación #{evaluacionAEliminar.id_evaluacion} será eliminada
-						de los datos de prueba.
+						La evaluación #{evaluacionAEliminar.id_evaluacion} será desactivada
+						podrás reactivarla editandola
 					</p>
 
 				</div>
@@ -846,10 +867,10 @@
 					<button
 						type="button"
 						class="btn btn-danger"
-						onclick={eliminarEvaluacion}
+						onclick={desactivarEvaluacion}
 					>
 						<i class="bi bi-trash me-1"></i>
-						Eliminar
+						desactivar
 					</button>
 
 				</div>
@@ -879,6 +900,38 @@
 		width: 100%;
 		max-width: 900px;
 		margin: auto;
+	}
+
+	.modal-content {
+		background-color: #fff;
+		color: #212529;
+		opacity: 1;
+		padding: 0.75rem;
+		border-radius: 1rem;
+		overflow: hidden;
+	}
+
+	.modal-header,
+	.modal-body,
+	.modal-footer {
+		background-color: #fff;
+	}
+
+	.modal-content .form-control,
+	.modal-content .form-select {
+		background-color: #fff;
+		color: #212529;
+		border-color: #ced4da;
+	}
+
+	.modal-content .form-control::placeholder {
+		color: #6c757d;
+		opacity: 1;
+	}
+
+	.modal-content .form-select option {
+		background-color: #fff;
+		color: #212529;
 	}
 
 	.detail-box {

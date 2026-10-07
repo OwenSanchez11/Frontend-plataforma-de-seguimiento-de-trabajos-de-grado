@@ -70,10 +70,12 @@ export const crearCarrera = (datos) => request('/carreras/', 'POST', datos);
 export const crearTrabajoGrado = (datos) => request('/trabajo_grado/', 'POST', datos);
 export const crearRol = (datos) => request('/rol/', 'POST', datos);
 export const crearUsuario = (datos) => request('/usuarios/', 'POST', datos);
+export const crearEvaluacion = (datos) => request(`/evaluaciones/`, 'POST', datos);
 //funciones para el put aquí
 export const actualizarTrabajoGrado = (id, datos) => request(`/trabajo_grado/${id}`, 'PUT', datos);
 export const editarRol = (id, datos) => request(`/rol/${id}` , 'PUT', datos )
 export const editarUsuario = (id, datos) => request(`/usuarios/${id}`, 'PUT', datos);
+export const editarEvaluacion = (id, datos) => request(`/evaluaciones/${id}`, 'PUT', datos);
 //funciones para delete aquí
 export const eliminarTrabajoGrado = (id) => request(`/trabajo_grado/${id}/`, 'DELETE');
 export const eliminarRol = (id) => request(`/rol/${id}`, 'DELETE');
