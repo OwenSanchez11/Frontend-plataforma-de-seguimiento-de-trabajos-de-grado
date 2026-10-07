@@ -1,7 +1,7 @@
 <script>
 
   import {onMount} from 'svelte';
-  import {getTrabajos, getCarreras, getFacultades} from '$lib/api'
+  import {getTrabajos, getCarreras, getFacultades, crearTrabajoGrado, actualizarTrabajoGrado} from '$lib/api'
  
   let trabajos = $state([]);
   let carreras = $state([]);
@@ -10,6 +10,10 @@
   let idCarrera = $state("");
   let cargando = $state(true);
   let error = $state(null);
+  let guardando = $state(false);
+  let errorFormulario =$state('');
+  let desactivando = $state(false);
+  let errorDesactivar = $state('');
 
   onMount(async () => {
     const [resTrabajos, resCarreras, resFacultades] = await Promise.allSettled([
@@ -45,7 +49,6 @@
   })
 
   let busqueda = $state("");
-  let modalAbierto = $state(false);
   let modalFormulario = $state(false);
   let modalEliminar = $state(false);
 
@@ -114,18 +117,31 @@
     return "text-bg-primary";
   }
 
-  function verTrabajo(trabajo) {
-    trabajoSeleccionado = trabajo;
-    modalAbierto = true;
-  }
-
-  function cerrarModal() {
-    modalAbierto = false;
-    trabajoSeleccionado = null;
-  }
 
   function abrirNuevoTrabajo() {
     modoFormulario = "crear";
+    errorFormulario = '';
+
+    formulario = {
+      id_carrera: "",
+      titulo: "",
+      resumen: "",
+      linea_investigacion:"",
+      estado_tramite:"En proceso",
+      fecha_inicio: "",
+      fecha_fin: "",
+      fecha_sustentacion:"",
+      observaciones_finales: "",
+      estado: true
+    };
+
+    modalFormulario = true;
+  }
+
+  //función que abre cuando se presiona el icono del lapiz en el frontend, llena el formulario con los datos que ya se tiene
+  function abrirEditarTrabajo(trabajo) {
+    modoFormulario = "editar";
+    errorFormulario = ''
 
     formulario = {
       id_carrera: trabajo.id_carrera,
@@ -133,29 +149,10 @@
       resumen: trabajo.resumen ?? "",
       linea_investigacion: trabajo.linea_investigacion ?? "",
       estado_tramite: trabajo.estado_tramite ?? "En proceso",
-      fecha_inicio: trabajo.fecha_inicio ?? "",
-      fecha_fin: trabajo.fecha_fin ?? "",
-      fecha_sustentacion: trabajo.fecha_sustentacion ?? "",
+      fecha_inicio: trabajo.fecha_inicio?.slice(0,10) ?? "",
+      fecha_fin: trabajo.fecha_fin?.slice(0,10) ?? "",
+      fecha_sustentacion: trabajo.fecha_sustentacion?.slice(0,10) ?? "",
       observaciones_finales: trabajo.observaciones_finales ?? "",
-      estado: trabajo.estado
-    };
-
-    modalFormulario = true;
-  }
-
-  function abrirEditarTrabajo(trabajo) {
-    modoFormulario = "editar";
-
-    formulario = {
-      id_carrera: trabajo.id_carrera,
-      titulo: trabajo.titulo,
-      resumen: trabajo.resumen,
-      linea_investigacion: trabajo.linea_investigacion,
-      estado_tramite: trabajo.estado_tramite,
-      fecha_inicio: trabajo.fecha_inicio,
-      fecha_fin: trabajo.fecha_fin,
-      fecha_sustentacion: trabajo.fecha_sustentacion,
-      observaciones_finales: trabajo.observaciones_finales,
       estado: trabajo.estado
     };
 
@@ -168,83 +165,96 @@
     trabajoSeleccionado = null;
   }
 
-  function guardarTrabajo() {
-    if (
-      !formulario.titulo.trim() ||
-      !formulario.id_carrera ||
-      !formulario.linea_investigacion.trim()
-    ) {
-      alert("Completa los campos obligatorios.");
+  //función para guardar o editar trabajos, esta es la que se conecta con la API, y como el modal del frontend es el mismo, la función detecta cual es la opción que se quiere ejecutar
+  async function guardarTrabajo() {
+    
+    if(!formulario.titulo.trim() || !formulario.id_carrera || !formulario.linea_investigacion?.trim()) {
+      errorFormulario = "Completa los campos obligatorios: carrera, título y línea de investigación.";
       return;
     }
 
-    if (modoFormulario === "crear") {
-      const nuevoTrabajo = {
-        id: trabajos.length > 0
-          ? Math.max(...trabajos.map((trabajo) => trabajo.id)) + 1
-          : 1,
+
+    guardando = true;
+    errorFormulario = '';
+
+    const datos = {
         id_carrera: Number(formulario.id_carrera),
-        titulo: formulario.titulo,
-        resumen: formulario.resumen,
-        linea_investigacion: formulario.linea_investigacion,
+        titulo: formulario.titulo.trim(),
+        resumen: formulario.resumen?.trim() || null,
+        linea_investigacion: formulario.linea_investigacion.trim(),
         estado_tramite: formulario.estado_tramite,
-        fecha_inicio: formulario.fecha_inicio,
-        fecha_fin: formulario.fecha_fin,
-        fecha_sustentacion: formulario.fecha_sustentacion,
-        observaciones_finales: formulario.observaciones_finales,
+        fecha_inicio: formulario.fecha_inicio || null,
+        fecha_fin: formulario.fecha_fin || null,
+        fecha_sustentacion: formulario.fecha_sustentacion || null,
+        observaciones_finales: formulario.observaciones_finales?.trim() || null,
         estado: formulario.estado
-      };
+    };
 
-      trabajos = [...trabajos, nuevoTrabajo];
+    //aquí detecta si es editar, ejecuta la función del actualizar, sino la de crear trabajo
+    try {
+      if (modoFormulario === 'editar') {
+        await actualizarTrabajoGrado(trabajoSeleccionado.id_trabajo_grado, datos);
+      } else {
+        await crearTrabajoGrado(datos);
+      }
 
-    } else {
-      trabajos = trabajos.map((trabajo) => {
-        if (trabajo.id_trabajo_grado === trabajoSeleccionado.id_trabajo_grado) {
-          return {
-            ...trabajo,
-            id_carrera: Number(formulario.id_carrera),
-            titulo: formulario.titulo,
-            resumen: formulario.resumen,
-            linea_investigacion: formulario.linea_investigacion,
-            estado_tramite: formulario.estado_tramite,
-            fecha_inicio: formulario.fecha_inicio,
-            fecha_fin: formulario.fecha_fin,
-            fecha_sustentacion: formulario.fecha_sustentacion,
-            observaciones_finales: formulario.observaciones_finales,
-            estado: formulario.estado
-          };
-        }
-
-        return trabajo;
-      });
+      //obtiene la lista de trabajos de grado y cierra el formulario
+      trabajos = await getTrabajos();
+      cerrarFormulario();
+    } catch (e) {
+      errorFormulario = e.message;
+    } finally {
+      guardando = false;
     }
 
-    cerrarFormulario();
   }
 
-  function confirmarEliminar(trabajo) {
+  function confirmarDesactivar(trabajo) {
     trabajoSeleccionado = trabajo;
+    errorDesactivar = '';
     modalEliminar = true;
   }
 
   function cerrarEliminar() {
     modalEliminar = false;
     trabajoSeleccionado = null;
+    errorDesactivar = '';
   }
 
-  function eliminarTrabajo() {
-    trabajos = trabajos.filter(
-      (trabajo) => trabajo.id_trabajo_grado !== trabajoSeleccionado.id_trabajo_grado
-    );
 
-    cerrarEliminar();
-  }
+  //función que sirve para actualizar el estado del trabajo(activo o inactivo) utilizando el endpoint del PUT
+  async function desactivarTrabajo() {
+    if (!trabajoSeleccionado) return;
 
-  function cerrarModalConTeclado(event) {
-    if (event.key === "Enter" || event.key === " ") {
-      cerrarModal();
+    desactivando = true;
+    errorDesactivar = '';
+
+    const t = trabajoSeleccionado;
+
+    try {
+      await actualizarTrabajoGrado(t.id_trabajo_grado, {
+        id_carrera: t.id_carrera,
+        titulo: t.titulo,
+        resumen: t.resumen,
+        linea_investigacion: t.linea_investigacion,
+        estado_tramite: t.estado_tramite,
+        fecha_inicio: t.fecha_inicio?.slice(0, 10) || null,
+        fecha_fin: t.fecha_fin?.slice(0, 10) || null,
+        fecha_sustentacion: t.fecha_sustentacion?.slice(0, 10) || null,
+        observaciones_finales: t.observaciones_finales,
+        estado: false
+      });
+
+      trabajos = await getTrabajos();
+      cerrarEliminar();
+    } catch (e) {
+      errorDesactivar = e.message;
+    } finally {
+      desactivando = false;
     }
   }
+
+
 </script>
 
 
@@ -290,6 +300,35 @@
         bind:value={busqueda}
       />
 
+    </div>
+
+    <div class="row g-2 mt-2 align-items-center">
+      <div class="col-6 col-md-5">
+        <select
+          class="form-select"
+          aria-label="Filtrar por facultad"
+          bind:value={idFacultad}
+          onchange={cambiarFacultad}
+        >
+          <option value="">Todas las facultades</option>
+          {#each facultades as facultad (facultad.id_facultad)}
+            <option value={facultad.id_facultad}>{facultad.nombre_facultad}</option>
+          {/each}
+        </select>
+      </div>
+
+      <div class="col-6 col-md-5">
+        <select class="form-select" aria-label="Filtrar por carrera" bind:value={idCarrera}>
+          <option value="">Todas las carreras</option>
+          {#each carrerasFiltradas as carrera (carrera.id_carrera)}
+            <option value={carrera.id_carrera}>{carrera.nombre_carrera}</option>
+          {/each}
+        </select>
+      </div>
+
+      <div class="col-12 col-md-2 text-md-end">
+        <span class="text-muted small">{trabajosFiltrados.length} trabajo(s)</span>
+      </div>
     </div>
 
   </div>
@@ -400,13 +439,15 @@
                   </button>
 
 
-                  <button
-                    class="btn btn-sm btn-light rounded-circle"
-                    title="Eliminar"
-                    onclick={() => confirmarEliminar(trabajo)}
-                  >
-                    <i class="bi bi-trash"></i>
-                  </button>
+                  {#if trabajo.estado}
+                    <button
+                      class="btn btn-sm btn-light rounded-circle"
+                      title="Desactivar"
+                      onclick={() => confirmarDesactivar(trabajo)}
+                    >
+                      <i class="bi bi-slash-circle"></i>
+                    </button>
+                  {/if}
 
                 </td>
 
@@ -427,156 +468,7 @@
 </div>
 
 
-
-{#if modalAbierto && trabajoSeleccionado}
-
-  <div
-    class="modal-backdrop-custom"
-    role="button"
-    tabindex="0"
-    aria-label="Cerrar modal"
-    onclick={cerrarModal}
-    onkeydown={cerrarModalConTeclado}
-  >
-
-    <div
-      class="modal-content-custom"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="titulo-modal-trabajo"
-      tabindex="-1"
-      onclick={(event) => event.stopPropagation()}
-      onkeydown={(event) => event.stopPropagation()}
-    >
-
-      <div class="d-flex justify-content-between align-items-center mb-3">
-
-        <h6
-          id="titulo-modal-trabajo"
-          class="fw-bold mb-0"
-        >
-          Detalles del Trabajo
-        </h6>
-
-        <button
-          type="button"
-          class="btn-close"
-          aria-label="Cerrar modal"
-          onclick={cerrarModal}
-        ></button>
-
-      </div>
-
-
-      <div class="mb-3">
-
-        <small class="text-muted d-block">
-          Título
-        </small>
-
-        <span class="fw-semibold">
-          {trabajoSeleccionado.titulo}
-        </span>
-
-      </div>
-
-
-      <div class="mb-3">
-
-        <small class="text-muted d-block">
-          Carrera
-        </small>
-
-        <span>
-          {obtenerNombreCarrera(
-            trabajoSeleccionado.id_carrera
-          )}
-        </span>
-
-      </div>
-
-
-      <div class="mb-3">
-
-        <small class="text-muted d-block">
-          Resumen
-        </small>
-
-        <span>
-          {trabajoSeleccionado.resumen ||
-            "Sin resumen registrado"}
-        </span>
-
-      </div>
-
-
-      <div class="mb-3">
-
-        <small class="text-muted d-block">
-          Línea de investigación
-        </small>
-
-        <span>
-          {trabajoSeleccionado.linea_investigacion}
-        </span>
-
-      </div>
-
-
-      <div class="mb-3">
-
-        <small class="text-muted d-block">
-          Estado del trámite
-        </small>
-
-        <span>
-          {trabajoSeleccionado.estado_tramite}
-        </span>
-
-      </div>
-
-
-      <div class="mb-3">
-
-        <small class="text-muted d-block">
-          Fecha de inicio
-        </small>
-
-        <span>
-          {trabajoSeleccionado.fecha_inicio ||
-            "No registrada"}
-        </span>
-
-      </div>
-
-
-      <div>
-
-        <small class="text-muted d-block">
-          Estado
-        </small>
-
-        <span
-          class="badge rounded-pill
-          {trabajoSeleccionado.estado
-            ? obtenerClaseEstado(trabajoSeleccionado)
-            : 'text-bg-secondary'}"
-        >
-          {trabajoSeleccionado.estado
-            ? trabajoSeleccionado.estado_tramite
-            : "Inactivo"}
-        </span>
-
-      </div>
-
-    </div>
-
-  </div>
-
-{/if}
-
-
-
+<!-- ventana que abre cuando se presiona o crear o editar trabajo de grado -->
 {#if modalFormulario}
 
   <div class="modal-backdrop-custom">
@@ -610,6 +502,10 @@
 
 
       <div class="row g-3">
+
+        {#if errorFormulario}
+          <div class="alert alert-danger py-2">{errorFormulario}</div>
+        {/if}
 
 
         <div class="col-12">
@@ -825,11 +721,13 @@
         <button
           type="button"
           class="btn btn-primary"
+          disabled={guardando}
           onclick={guardarTrabajo}
         >
           <i class="bi bi-check-lg me-1"></i>
 
-          {modoFormulario === "crear"
+          {guardando 
+            ? "guardando..." : modoFormulario === "crear"
             ? "Crear Trabajo"
             : "Guardar Cambios"}
 
@@ -844,45 +742,38 @@
 {/if}
 
 
-
+<!-- ventana que se abre para desactivar un trabajo -->
 {#if modalEliminar && trabajoSeleccionado}
 
   <div class="modal-backdrop-custom">
 
     <div
-      class="modal-content-custom modal-confirmacion"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="titulo-eliminar"
+        class="modal-content-custom modal-confirmacion"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="titulo-eliminar"
     >
 
       <div class="text-center">
 
-        <div class="icono-eliminar mb-3">
-          <i class="bi bi-trash"></i>
-        </div>
-
-        <h6
-          id="titulo-eliminar"
-          class="fw-bold"
-        >
-          ¿Eliminar trabajo de grado?
-        </h6>
-
-        <p class="text-muted small">
-          Estás a punto de eliminar:
-        </p>
-
-        <p class="fw-semibold">
-          {trabajoSeleccionado.titulo}
-        </p>
-
-        <p class="text-muted small">
-          Esta acción solo afecta los datos ficticios
-          del frontend.
-        </p>
-
+      <div class="icono-eliminar mb-3">
+        <i class="bi bi-slash-circle"></i>
       </div>
+
+      <h6 id="titulo-eliminar" class="fw-bold">¿Desactivar trabajo de grado?</h6>
+
+      <p class="fw-semibold">{trabajoSeleccionado.titulo}</p>
+
+      <p class="text-muted small">
+        Quedará inactivo, pero se conservarán sus avances y su historial.
+        Podrás reactivarlo editándolo.
+      </p>
+
+      {#if errorDesactivar}
+        <div class="alert alert-danger py-2 small">{errorDesactivar}</div>
+      {/if}
+
+    </div>
 
 
       <div class="d-flex justify-content-center gap-2 mt-4">
@@ -898,10 +789,11 @@
         <button
           type="button"
           class="btn btn-danger"
-          onclick={eliminarTrabajo}
+          disabled={desactivando}
+          onclick={desactivarTrabajo}
         >
-          <i class="bi bi-trash me-1"></i>
-          Eliminar
+          <i class="bi bi-slash-circle me-1"></i>
+          {desactivando ? "Desactivando..." : "Desactivar"}
         </button>
 
       </div>
