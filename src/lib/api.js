@@ -88,6 +88,8 @@
     export const editarEvaluacion = (id, datos) => request(`/evaluaciones/${id}`, 'PUT', datos);
     export const editarAvance = (id, datos) => request(`/avances/${id}`, 'PUT', datos);
     export const editarEquipoTrabajo = (id, datos) => request(`/equipo-trabajo/${id}`, 'PUT', datos);
+    export const actualizarFacultad = (id, datos) => request(`/facultades/${id}`, 'PUT', datos);
+    export const actualizarCarrera = (id, datos) => request(`/carreras/${id}`, 'PUT', datos);
     //funciones para delete aquí
     export const eliminarTrabajoGrado = (id) => request(`/trabajo_grado/${id}/`, 'DELETE');
     export const eliminarRol = (id) => request(`/rol/${id}`, 'DELETE');

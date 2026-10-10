@@ -2,7 +2,7 @@
 
     //importas el onMount y los endpoint que necesitas
     import {onMount} from 'svelte';
-    import {getFacultades, getCarreras, crearFacultad, crearCarrera} from '$lib/api';
+    import {getFacultades, getCarreras, crearFacultad, crearCarrera, actualizarFacultad, actualizarCarrera} from '$lib/api';
 
     //variables para guardar lo que obtengas del endpoint
     let facultades = $state([]);
@@ -165,21 +165,24 @@
             return;
         }
 
-        if (modoEdicion) return;
-
         guardando = true;
         errorFormulario = '';
 
+        const datos = {
+            nombre_facultad: formularioFacultad.nombre.trim(),
+            codigo_facultad: formularioFacultad.codigo.trim() || null,
+            estado: formularioFacultad.estado
+        };
+
         try {
-            //llamas a la función que conecta con el endpoint, aquí lo que hacemos es convertir los datos que obtenemos del formulario con el nombre que tenemos en la DB de los parametros
-            await crearFacultad({
-                nombre_facultad: formularioFacultad.nombre.trim(),
-                codigo_facultad: formularioFacultad.codigo.trim() || null,
-                estado: formularioFacultad.estado
-            });
+            if (modoEdicion) {
+                await actualizarFacultad(formularioFacultad.id, datos);
+            } else {
+                await crearFacultad(datos);
+            }
             facultades = await getFacultades();
             cerrarFormulario();
-        } catch (e) {
+        } catch(e) {
             errorFormulario = e.message;
         } finally {
             guardando = false;
@@ -193,22 +196,25 @@
             return;
         }
 
-        if (modoEdicion) return;
         guardando = true;
         errorFormulario = '';
+        const datos = {
+            nombre_carrera: formularioCarrera.nombre.trim(),
+            codigo_carrera: formularioCarrera.codigo?.trim() || null,
+            id_facultad: Number(formularioCarrera.id_facultad),
+            estado: formularioCarrera.estado
+        };
 
         try {
-            //llamas a la función que conecta con el endpoint, aquí lo que hacemos es convertir los datos que obtenemos del formulario con el nombre que tenemos en la DB de los parametros
-            await crearCarrera({
-                nombre_carrera: formularioCarrera.nombre.trim(),
-                codigo_carrera: formularioCarrera.codigo?.trim() || null,
-                id_facultad: Number(formularioCarrera.id_facultad),
-                estado: formularioCarrera.estado
-            });
+            if (modoEdicion) {
+                await actualizarCarrera(formularioCarrera.id, datos);
+            } else {
+                await crearCarrera(datos);
+            }
             carreras = await getCarreras();
             cerrarFormulario();
-        } catch (e) {
-            errorFormulario = e.message;
+        } catch(e) {
+            errorFormulario = e.message
         } finally {
             guardando = false;
         }
@@ -220,25 +226,34 @@
         mostrarEliminar = true;
     }
 
-    function eliminarElemento() {
+    async function eliminarElemento() {
         if (!elementoSeleccionado) return;
+        guardando = true;
 
-        if (tipoFormulario === "facultad") {
-            facultades = facultades.filter(
-                (item) => item.id !== elementoSeleccionado.id
-            );
-
-            carreras = carreras.filter(
-                (item) => item.id_facultad !== elementoSeleccionado.id
-            );
-        } else {
-            carreras = carreras.filter(
-                (item) => item.id !== elementoSeleccionado.id
-            );
+        try {
+            if(tipoFormulario === "facultad") {
+                await actualizarFacultad(elementoSeleccionado.id_facultad,{
+                    nombre_facultad: elementoSeleccionado.nombre_facultad,
+                    codigo_facultad: elementoSeleccionado.codigo_facultad,
+                    estado: false
+                });
+            } else {
+                await actualizarCarrera(elementoSeleccionado.id_carrera, {
+                    nombre_carrera: elementoSeleccionado.nombre_carrera,
+                    codigo_carrera: elementoSeleccionado.codigo_carrera,
+                    id_facultad: elementoSeleccionado.id_facultad,
+                    estado: false
+                });
+                carreras = await getCarreras();
+                
+            }
+            cerrarEliminar();
+        } catch (e) {
+            console.error(e)
+            alert(e.message)
+        } finally {
+            guardando = false;
         }
-
-        mostrarEliminar = false;
-        elementoSeleccionado = null;
     }
 
     function cerrarFormulario() {
@@ -735,7 +750,9 @@
 
             <div class="modal-body-custom">
 
-                {#if tipoFormulario === "facultad"}
+                {#if tipoFormulario === "facultad"
+                    ? elementoSeleccionado.nombre_facultad
+                    : elementoSeleccionado.nombre_carrera}
 
                     <div class="detail-item">
                         <strong>ID:</strong>
@@ -859,7 +876,7 @@
 
                 {#if tipoFormulario === "facultad"}
                     <small class="text-danger d-block mt-2">
-                        Al eliminar una facultad también se eliminarán sus carreras ficticias.
+                        Al eliminar una facultad también se eliminarán sus carreras.
                     </small>
                 {/if}
 
@@ -877,6 +894,7 @@
                 <button
                     class="btn btn-danger"
                     onclick={eliminarElemento}
+                    disabled={guardando}
                 >
                     <i class="bi bi-trash me-2"></i>
                     Eliminar
