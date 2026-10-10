@@ -1,13 +1,40 @@
 <script>
-    let correo = '';
-    let password = '';
-    let recordar = false;
-    let mostrarPassword = false;
-    let tabActiva = 'credenciales';
+  import { goto } from "$app/navigation";
+  import { iniciarSesion } from "$lib/sesion.svelte";
 
-    function handleLogin() {
+    let correo = $state('');
+    let password = $state('');
+    let recordar = $state(false);
+    let mostrarPassword = $state(false);
+    let tabActiva = $state('credenciales');
+	const clave = 'sesion_simulada_v2';
 
-    }
+	const usuariosPrueba = [
+		{ rol: 'estudiante', etiqueta: 'Estudiante', icono: 'bi-mortarboard',
+		usuario: { id_user: 1, nombre: 'Owen', apellido: 'Sanchez', rol: 'estudiante',
+					facultad: 'FACULTAD DE INGENIERÍA',
+					programa: 'PROGRAMA DE INGENIERÍA DE SISTEMAS Y COMPUTACIÓN' }, ruta: '/' },
+		{ rol: 'profesor', etiqueta: 'Profesor', icono: 'bi-person-workspace',
+		usuario: { id_user: 2, nombre: 'Marta', apellido: 'Rojas', rol: 'docente',
+					facultad: 'FACULTAD DE INGENIERÍA',
+					programa: 'PROGRAMA DE INGENIERÍA DE SISTEMAS Y COMPUTACIÓN' }, ruta: '/' },
+		{ rol: 'coordinador', etiqueta: 'Coordinador', icono: 'bi-diagram-3',
+		usuario: { id_user: 3, nombre: 'Andrés', apellido: 'Mejía', rol: 'coordinador',
+					facultad: 'FACULTAD DE INGENIERÍA',
+					programa: 'PROGRAMA DE INGENIERÍA DE SISTEMAS Y COMPUTACIÓN' }, ruta: '/coordinador' },
+		{ rol: 'administrador', etiqueta: 'Administrador', icono: 'bi-shield-lock',
+		usuario: { id_user: 4, nombre: 'Luis', apellido: 'Torres', rol: 'administrador' }, ruta: '/admin' }
+	];
+
+
+	let rolSeleccionado = $state('estudiante');
+
+	function handleLogin(e) {
+		e.preventDefault();
+		const elegido = usuariosPrueba.find((u) => u.rol === rolSeleccionado);
+		iniciarSesion(elegido.usuario);
+		goto(elegido.ruta);
+	}
 </script>
 
 
@@ -53,7 +80,7 @@
 						bind:value={correo}
 						class="form-control bg-light border-start-0 ps-0"
 						placeholder="ejemplo@universidad.edu.co"
-						required
+				
 					/>
 				</div>
 			</div>
@@ -73,7 +100,7 @@
 						bind:value={password}
 						class="form-control bg-light border-start-0 border-end-0 ps-0"
 						placeholder="••••••••••••"
-						required
+		
 					/>
 					<button
 					  type="button"
@@ -96,6 +123,28 @@
 					<strong class="text-dark d-block mb-1">Recordar sesión en este equipo institucional</strong>
 					Desmarca esta opción si utilizas una estación de trabajo compartida en aulas o biblioteca.
 				</label>
+			</div>
+
+
+			<div class="mb-4">
+				<p class="form-label small fw-bold mb-2">Ingresar como</p>
+				<div class="row g-2">
+					{#each usuariosPrueba as u}
+						<div class="col-6">
+							<input
+								type="radio"
+								class="btn-check"
+								name="rol"
+								id="rol-{u.rol}"
+								value={u.rol}
+								bind:group={rolSeleccionado}
+							/>
+							<label class="btn btn-outline-primary w-100" for="rol-{u.rol}">
+								<i class="bi {u.icono} me-1"></i>{u.etiqueta}
+							</label>
+						</div>
+					{/each}
+				</div>
 			</div>
 
 			<button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold rounded-3 mb-4 d-flex align-items-center justify-content-center gap-2">

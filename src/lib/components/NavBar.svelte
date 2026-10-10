@@ -1,8 +1,18 @@
 <script>
+	import { sesion, cerrarSesion } from '$lib/sesion.svelte.js';
 	import { page } from '$app/stores';
 
+	let esEstudiante = $derived(sesion.usuario?.rol === 'estudiante');
+	let esDocente = $derived(sesion.usuario?.rol === 'docente');
 	let menuAbierto = $state(false);
 	let busqueda = $state('');
+	let nombre = $derived(sesion.usuario?.nombre ?? '');
+
+	let iniciales = $derived(
+	nombre.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
+	);
+	let subtitulo = $derived(esDocente ? 'Docente' : 'Ing. Sistemas y computación');
+
 
 	function toggleMenu() {
 		menuAbierto = !menuAbierto;
@@ -12,16 +22,27 @@
 		menuAbierto = false;
 	}
 
-	const menuPrincipal = [
-		{ id: 'dashboard', name: 'Inicio', icon: 'bi-grid-1x2-fill', href: '/' },
+
+	const menuComun = [
+		{ id: 'dashboard', name: 'Inicio', icon: 'bi-grid-1x2-fill', href: '/' }
+	]
+
+	const menuEstudiante = [
 		{ id: 'trabajo', name: 'Mi Trabajo de Grado', icon: 'bi-journal-text', href: '/trabajoGrado' },
 		{ id: 'entregas', name: 'Avances & Entregas', icon: 'bi-folder2-open', href: '/entregas' },
 		{ id: 'retro', name: 'Retroalimentaciones & Jurados', icon: 'bi-chat-left-text', href: '/retroalimentaciones' }
 	];
 
-	const menuProfesores = [
-		{ id: 'evaluaciones', name: 'Evaluaciones', icon: 'bi-book', href: '/evaluaciones' }
+	const menuDocente = [
+		{ id: 'equipos', name: 'equipos', icon: 'bi bi-people-fill', href: '/equipo_trabajo' },
+		{ id: 'evaluaciones', name: 'Evaluaciones & trabajos asignados', icon: 'bi-book', href: '/evaluaciones' },
+		{ id: 'avances', name: 'Avances & Entregas', icon: 'bi-bi-chat-left-text', href: '/entregas_docente' },
+		{ id: 'retro-docente', name: 'Retroalimentaciones', icon: 'bi-chat-left-text', href: '/retroalimentaciones_docente' },
 	];
+
+	let menu = $derived(
+		esEstudiante ? [...menuComun, ...menuEstudiante] : esDocente ? [...menuComun, ...menuDocente] : menuComun
+	);
 
 	let usuario = {
 		nombre: 'Owen Sanchez',
@@ -53,14 +74,14 @@
 				href="/login"
 				class="d-flex align-items-center gap-2 text-decoration-none p-1.5 rounded-3 profile-hover transition-all"
 				title="Cerrar sesión o Cambiar de usuario"
-				onclick={cerrarMenu}
+				onclick={() => { cerrarSesion(); cerrarMenu(); }}
 			>
 				<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold extra-small flex-shrink-0" style="width: 32px; height: 32px;">
-					OS
+					{iniciales}
 				</div>
 				<div class="lh-1 min-w-0 d-none d-sm-block">
-					<span class="fw-bold text-dark d-block extra-small text-truncate">{usuario.nombre}</span>
-					<span class="extra-small text-muted">{usuario.carrera}</span>
+					<span class="fw-bold text-dark d-block extra-small text-truncate">{nombre}</span>
+					<span class="extra-small text-muted">{subtitulo}</span>
 				</div>
 				<i class="bi bi-box-arrow-right text-muted extra-small d-none d-sm-inline"></i>
 			</a>
@@ -81,7 +102,7 @@
 		<div class="container-fluid px-3 px-md-4 py-2 d-flex flex-column flex-xl-row align-items-stretch align-items-xl-center justify-content-between gap-2">
 
 			<ul class="nav flex-column flex-xl-row gap-1 mb-0 flex-grow-1">
-				{#each menuPrincipal as item}
+				{#each menu as item}
 					<li class="nav-item">
 						<a
 							class="nav-link px-2.5 py-2 rounded-3 extra-small fw-semibold d-flex align-items-center gap-2 transition-all {$page.url.pathname === item.href ? 'active bg-primary text-white' : 'text-secondary hover-bg-light'}"
@@ -94,25 +115,7 @@
 					</li>
 				{/each}
 
-				<li class="nav-item d-none d-xl-block mx-1 my-auto">
-					<div class="vr h-100 opacity-25"></div>
-				</li>
-				<li class="nav-item d-xl-none mt-2 pt-2 border-top">
-					<span class="extra-small text-muted fw-bold text-uppercase px-2 d-block mb-1">Evaluaciones Docentes</span>
-				</li>
 
-				{#each menuProfesores as item}
-					<li class="nav-item">
-						<a
-							class="nav-link px-2.5 py-2 rounded-3 extra-small fw-semibold d-flex align-items-center gap-2 transition-all {$page.url.pathname === item.href ? 'active bg-primary text-white' : 'text-secondary hover-bg-light'}"
-							href={item.href}
-							onclick={cerrarMenu}
-						>
-							<i class="bi {item.icon} fs-6"></i>
-							<span>{item.name}</span>
-						</a>
-					</li>
-				{/each}
 			</ul>
 
 			<form class="d-flex flex-shrink-0" style="max-width: 280px; width: 100%;" onsubmit={buscar}>

@@ -6,7 +6,13 @@ import {PUBLIC_API_URL} from '$env/static/public';
 async function get(ruta) {
     const res = await fetch(`${PUBLIC_API_URL}${ruta}`)
     if(!res.ok) {
-        throw Error(`Error ${res.status} al cargar ${ruta}`);
+        const error = await res.json().catch(() => null);
+        const mensaje = typeof error?.detail === 'string'
+            ? error.detail
+            : `Error ${res.status} al cargar ${ruta}`;
+        const excepcion = new Error(mensaje);
+        excepcion.status = res.status;
+        throw excepcion;
     }
     return res.json();
 }
@@ -20,6 +26,7 @@ export const getRoles = () => get('/rol/');
 export const getFacultades = () => get("/facultades/");
 export const getModulos = () => get("/modulos/");
 export const getModulosRol = () => get("/modulo-rol/")
+export const getTrabajoPorEstudiante = (id_user) => get(`/equipo-trabajo/estudiante/${id_user}`)
 
 // función para pasarle los PARAMETROS necesarios para obtener el get, en este caso necesitamos 'id_Facultad' y 'id_carrera' para poder filtrarlos
 export const getEvaluaciones = ({ idFacultad = '', idCarrera = ''} = {}) => {
