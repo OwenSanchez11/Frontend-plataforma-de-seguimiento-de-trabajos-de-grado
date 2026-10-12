@@ -1,5 +1,7 @@
 <!-- components/BannerBienvenida.svelte -->
 <script>
+	import { inicioDelDia, parsearFechaLocal } from '$lib/fechas';
+
 	// usuario: { nombre, apellido, rol, facultad?, programa? }
 	// proyecto: solo para estudiantes (null para los demás roles)
 	let { usuario, proyecto = null, cargando = false } = $props();
@@ -27,16 +29,16 @@
 	})();
 
 	// El hito llega con la fecha límite en formato ISO (ej. "2026-11-28T23:59:00")
-	let diasRestantes = $derived(
-		proyecto?.hitoCritico
-			? Math.ceil((new Date(proyecto.hitoCritico.limite) - new Date()) / 86400000)
-			: null
+	let fechaLimite = $derived(parsearFechaLocal(proyecto?.hitoCritico?.limite));
+	let diasRestantes = $derived(fechaLimite
+		? Math.round((inicioDelDia(fechaLimite) - inicioDelDia(new Date())) / 86400000)
+		: null
 	);
 
 	let limiteFormateado = $derived(
-		proyecto?.hitoCritico
-			? new Date(proyecto.hitoCritico.limite).toLocaleString('es-CO', {
-					day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+		fechaLimite
+			? fechaLimite.toLocaleDateString('es-CO', {
+					day: 'numeric', month: 'long', year: 'numeric'
 				})
 			: ''
 	);
@@ -135,9 +137,6 @@
 							<span class="extra-small text-muted">Fecha límite de radicación: {limiteFormateado}</span>
 						</div>
 					</div>
-					<button class="btn btn-primary btn-sm px-3 py-2 fw-semibold rounded-3 d-flex align-items-center gap-2 shadow-sm">
-						<i class="bi bi-cloud-upload"></i> Subir Entrega Pendiente
-					</button>
 				</div>
 			{/if}
 		</div>
