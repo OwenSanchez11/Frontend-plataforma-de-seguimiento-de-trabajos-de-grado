@@ -29,7 +29,6 @@
 
 	const menuEstudiante = [
 		{ id: 'trabajo', name: 'Mi Trabajo de Grado', icon: 'bi-journal-text', href: '/trabajoGrado' },
-		{ id: 'entregas', name: 'Avances & Entregas', icon: 'bi-folder2-open', href: '/entregas' },
 		{ id: 'retro', name: 'Retroalimentaciones & Jurados', icon: 'bi-chat-left-text', href: '/retroalimentaciones' }
 	];
 

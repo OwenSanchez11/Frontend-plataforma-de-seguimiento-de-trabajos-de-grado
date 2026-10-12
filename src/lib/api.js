@@ -18,38 +18,38 @@
     }
 
     // funciones para pasarles la ruta a la función del endpoint GET
-    export const getTrabajos = () => get('/trabajo_grado/');
-    export const getTrabajoPorId = (id) => get(`/trabajo_grado/${id}/`);
-    export const getCarreras = () => get('/carreras/');
-    export const getUsuarios = () => get('/usuarios/');
-    export const getEquiposTrabajo = () => get('/equipo-trabajo/');
-    export const getRoles = () => get('/rol/');
-    export const getFacultades = () => get("/facultades/");
-    export const getModulos = () => get("/modulos/");
-    export const getModulosRol = () => get("/modulo-rol/")
-    export const getTrabajoPorEstudiante = (id_user) => get(`/equipo-trabajo/estudiante/${id_user}`)
+export const getTrabajos = () => get('/trabajo_grado/');
+export const getTrabajoPorId = (id) => get(`/trabajo_grado/${id}/`);
+export const getCarreras = () => get('/carreras/');
+export const getUsuarios = () => get('/usuarios/');
+export const getEquiposTrabajo = () => get('/equipo-trabajo/');
+export const getRoles = () => get('/rol/');
+export const getFacultades = () => get("/facultades/");
+export const getModulos = () => get("/modulos/");
+export const getModulosRol = () => get("/modulo-rol/");
+export const getTrabajoPorEstudiante = (id_user) => get(`/equipo-trabajo/estudiante/${id_user}`);
+export const getAvancePorTrabajo = (id_trabajo_grado) => get(`/avances/trabajo/${id_trabajo_grado}`);
+export const getRetroalimentacionPorTrabajo = (id_trabajo_grado) => get(`/retroalimentaciones/trabajo/${id_trabajo_grado}`) 
+    // función para pasarle los parametros necesarios para obtener el get, en este caso necesitamos 'id_Facultad' y 'id_carrera' para poder filtrarlos
+export const getEvaluaciones = ({ idFacultad = '', idCarrera = ''} = {}) => {
 
-    // función para pasarle los PARAMETROS necesarios para obtener el get, en este caso necesitamos 'id_Facultad' y 'id_carrera' para poder filtrarlos
-    export const getEvaluaciones = ({ idFacultad = '', idCarrera = ''} = {}) => {
-
-        //con URLSearchParams armamos la query para luego mandarsela al endpoint
-        const params = new URLSearchParams();
-        //agregamos el id de la facultad y la carrera en el link a donde se va a hacer la petición
-        if (idFacultad) params.append('id_facultad', idFacultad);
-        if (idCarrera) params.append('id_carrera', idCarrera);
+    //con URLSearchParams armamos la query para luego mandarsela al endpoint
+    const params = new URLSearchParams();
+    //agregamos el id de la facultad y la carrera en el link a donde se va a hacer la petición
+    if (idFacultad) params.append('id_facultad', idFacultad);
+    if (idCarrera) params.append('id_carrera', idCarrera);
         
-        const query = params.toString();
-        return get(`/evaluaciones/${query ? `?${query}`: '' }`);
-    }
+    const query = params.toString();
+    return get(`/evaluaciones/${query ? `?${query}`: '' }`);
+}
 
+export const getAvances = ({ idTrabajo = '' } = {}) => {
+    const params = new URLSearchParams();
+    if (idTrabajo) params.append('id_trabajo_grado', idTrabajo);
 
-    export const getAvances = ({ idTrabajo = '' } = {}) => {
-        const params = new URLSearchParams();
-        if (idTrabajo) params.append('id_trabajo_grado', idTrabajo);
-
-        const query = params.toString();
-        return get(`/avances/${query ? `?${query}` : ''}`);
-    }
+    const query = params.toString();
+    return get(`/avances/${query ? `?${query}` : ''}`);
+}
 
 
     //función génerica para poder hacer post, put y delete
@@ -81,6 +81,7 @@
     export const crearEvaluacion = (datos) => request(`/evaluaciones/`, 'POST', datos);
     export const crearAvance = (datos) => request('/avances/', 'POST', datos);
     export const crearEquipoTrabajo = (datos) => request('/equipo-trabajo/', 'POST', datos);
+    export const crearRetroalimentacion = (datos) => request('/retroalimentaciones/', 'POST', datos)
     //funciones para el put aquí
     export const actualizarTrabajoGrado = (id, datos) => request(`/trabajo_grado/${id}`, 'PUT', datos);
     export const editarRol = (id, datos) => request(`/rol/${id}` , 'PUT', datos )
@@ -90,6 +91,7 @@
     export const editarEquipoTrabajo = (id, datos) => request(`/equipo-trabajo/${id}`, 'PUT', datos);
     export const actualizarFacultad = (id, datos) => request(`/facultades/${id}`, 'PUT', datos);
     export const actualizarCarrera = (id, datos) => request(`/carreras/${id}`, 'PUT', datos);
+    export const actualizarAvance= (id, datos) => request(`/avances/${id}`, 'PUT', datos)
     //funciones para delete aquí
     export const eliminarTrabajoGrado = (id) => request(`/trabajo_grado/${id}/`, 'DELETE');
     export const eliminarRol = (id) => request(`/rol/${id}`, 'DELETE');
