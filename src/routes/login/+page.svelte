@@ -11,15 +11,15 @@
 
 	const usuariosPrueba = [
 		{ rol: 'estudiante', etiqueta: 'Estudiante', icono: 'bi-mortarboard',
-		usuario: { id_user: 1, nombre: 'Owen', apellido: 'Sanchez', rol: 'estudiante',
+		usuario: { id_user: 3, nombre: 'Owen', apellido: 'Sanchez', rol: 'estudiante',
 					facultad: 'FACULTAD DE INGENIERÍA',
 					programa: 'PROGRAMA DE INGENIERÍA DE SISTEMAS Y COMPUTACIÓN' }, ruta: '/' },
 		{ rol: 'profesor', etiqueta: 'Profesor', icono: 'bi-person-workspace',
-		usuario: { id_user: 2, nombre: 'Marta', apellido: 'Rojas', rol: 'docente',
+		usuario: { id_user: 4, nombre: 'Andrés', apellido: 'Gómez', rol: 'docente',
 					facultad: 'FACULTAD DE INGENIERÍA',
 					programa: 'PROGRAMA DE INGENIERÍA DE SISTEMAS Y COMPUTACIÓN' }, ruta: '/' },
 		{ rol: 'coordinador', etiqueta: 'Coordinador', icono: 'bi-diagram-3',
-		usuario: { id_user: 3, nombre: 'Andrés', apellido: 'Mejía', rol: 'coordinador',
+		usuario: { id_user: 3, nombre: 'Andrés', apellido: 'Gómez', rol: 'coordinador',
 					facultad: 'FACULTAD DE INGENIERÍA',
 					programa: 'PROGRAMA DE INGENIERÍA DE SISTEMAS Y COMPUTACIÓN' }, ruta: '/coordinador' },
 		{ rol: 'administrador', etiqueta: 'Administrador', icono: 'bi-shield-lock',

@@ -240,6 +240,7 @@
 	});
 </script>
 
+
 <svelte:window onkeydown={(e) => e.key === 'Escape' && cerrarTodo()} />
 
 <div class="d-flex bg-light min-vh-100">

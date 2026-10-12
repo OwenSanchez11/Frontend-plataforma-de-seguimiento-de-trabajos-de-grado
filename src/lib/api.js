@@ -30,6 +30,7 @@ export const getModulosRol = () => get("/modulo-rol/");
 export const getTrabajoPorEstudiante = (id_user) => get(`/equipo-trabajo/estudiante/${id_user}`);
 export const getAvancePorTrabajo = (id_trabajo_grado) => get(`/avances/trabajo/${id_trabajo_grado}`);
 export const getRetroalimentacionPorTrabajo = (id_trabajo_grado) => get(`/retroalimentaciones/trabajo/${id_trabajo_grado}`) 
+export const getTrabajoPorDocente = (id_user) => get(`/equipo-trabajo/docente/${id_user}`);
     // función para pasarle los parametros necesarios para obtener el get, en este caso necesitamos 'id_Facultad' y 'id_carrera' para poder filtrarlos
 export const getEvaluaciones = ({ idFacultad = '', idCarrera = ''} = {}) => {
 
