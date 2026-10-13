@@ -121,11 +121,6 @@ let equipo = $state([
                 {/each}
               </div>
             </div>
-            <div class="card-footer bg-transparent text-end">
-              <a class="btn btn-sm btn-outline-primary" href="/equipo_trabajo/{trabajo.id_trabajo_grado}">
-                Ver trabajo
-              </a>
-            </div>
           </div>
         </div>
       {/each}
