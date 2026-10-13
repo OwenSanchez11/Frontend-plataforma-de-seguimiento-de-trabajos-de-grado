@@ -16,6 +16,7 @@
 	let respuesta = $state('')
 	let enviando = $state(false);
 	let errorRespuesta = $state('');
+	let respuestaGuardada = $state(false);
 
 
 	function nombreCompleto(p) {
@@ -64,8 +65,14 @@
 		return formatearFecha(f) + ' • ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 	}
 
-	const autorDe = (id) => integrantes.find((p) => p.id_user === id);
-	const totalDe = (p) => observaciones.filter((o) => o.id_user === p.id_user).length;
+	const idAutorDe = (o) => o.id_user ?? o.id_usuario ?? o.usuario?.id_user ?? o.usuario?.id;
+	const idIntegranteDe = (p) => p.id_user ?? p.id_usuario ?? p.id;
+	const mismoId = (a, b) => a != null && b != null && String(a) === String(b);
+	const autorDe = (o) => integrantes.find((p) => mismoId(idIntegranteDe(p), idAutorDe(o)));
+	const totalDe = (p) => observaciones.filter((o) => mismoId(idAutorDe(o), idIntegranteDe(p))).length;
+	const esRespuestaDelEstudiante = (o) => mismoId(idAutorDe(o), sesion.usuario?.id_user);
+	// La respuesta no debe depender de que el autor aparezca en la lista del equipo.
+	const puedeResponder = (o) => !esRespuestaDelEstudiante(o) && o.id_avance != null;
 
 	function colorBorde(o) {
 		switch (textoEstado(o)) {
@@ -82,7 +89,7 @@
 	}
 	function ultimaRevision(p) {
 		return observaciones
-			.filter((o) => o.id_user === p.id_user)
+			.filter((o) => mismoId(idAutorDe(o), idIntegranteDe(p)))
 			.map((o) => o.created_at)
 			.sort()
 			.at(-1) ?? null
@@ -93,6 +100,7 @@
 		respondiendoA = obs;
 		respuesta = '';
 		errorRespuesta = '';
+		respuestaGuardada = false;
 	}
 
 	function cerrarRespuesta() {
@@ -109,15 +117,40 @@
 		enviando = true
 		errorRespuesta = '';
 		try {
-			await crearRetroalimentacion({
-				id_avance: respondiendoA.id_avance,
-				id_usuario: sesion.usuario.id_user,
-				comentario: `Respuesta: ${texto}`
-			});
-
-			const lista = await getRetroalimentacionPorTrabajo(idTrabajo);
-			observaciones = Array.isArray(lista) ? lista : [];
+			if (!respondiendoA?.id_avance) {
+				throw new Error('Esta observación no tiene un avance asociado y no se puede guardar la respuesta.');
+			}
+			const comentario = `Respuesta: ${texto}`;
+			const datos = {
+				id_avance: Number(respondiendoA.id_avance),
+				id_usuario: Number(sesion.usuario.id_user),
+				comentario
+			};
+			const creada = await crearRetroalimentacion(datos);
+			const observacionGuardada = {
+				...respondiendoA,
+				...(creada && typeof creada === 'object' ? creada : {}),
+				id_retroalimentacion: creada?.id_retroalimentacion ?? `local-${Date.now()}`,
+				id_avance: datos.id_avance,
+				id_user: datos.id_usuario,
+				comentario,
+				created_at: creada?.created_at ?? new Date().toISOString(),
+				fecha_entrega: null,
+				dictamen: null
+			};
+			observaciones = [...observaciones, observacionGuardada];
 			respondiendoA = null;
+			respuesta = '';
+			respuestaGuardada = true;
+
+			// El POST ya se guardó; si el GET de actualización falla, conservamos la respuesta
+			// en pantalla y no mostramos un error que sugiera volver a enviarla.
+			try {
+				const lista = await getRetroalimentacionPorTrabajo(idTrabajo);
+				if (Array.isArray(lista)) observaciones = lista;
+			} catch {
+				// La respuesta quedó guardada por el POST.
+			}
 		} catch(error) {
 			errorRespuesta = error.message;
 		} finally {
@@ -143,6 +176,9 @@
 		{:else if sinTrabajo}
 			<div class="alert alert-info">Aún no tienes un trabajo de grado asignado.</div>
 		{:else}
+			{#if respuestaGuardada}
+				<div class="alert alert-success py-2">Tu respuesta se guardó correctamente.</div>
+			{/if}
 			<div class="row g-3 mb-4">
 				<div class="col-6 col-md-4">
 					<div class="card border-0 shadow-sm rounded-4 p-3 h-100">
@@ -211,7 +247,7 @@
 
 				<div class="d-flex flex-column gap-3">
 					{#each observaciones as obs (obs.id_retroalimentacion)}
-						{@const autor = autorDe(obs.id_user)}
+						{@const autor = autorDe(obs)}
 						<div class="border rounded-3 p-3 bg-white shadow-2xs">
 							<div class="border rounded-3 p-3 bg-white shadow-2xs" style="border-left: 4px solid var(--bs-{colorBorde(obs)}) !important;">
 								<div class="d-flex align-items-center gap-2 flex-wrap">
@@ -227,9 +263,11 @@
 							<p class="small text-secondary bg-light p-3 rounded-3 border mb-3">"{obs.comentario}"</p>
 
 							<div class="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 pt-2 border-top">
-								<span class="badge border extra-small {claseEstado(obs)}">{textoEstado(obs)}</span>
+								<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle extra-small">
+									Por responder
+								</span>
 
-								{#if autor?.rol_proyecto}
+								{#if puedeResponder(obs)}
 									<button
 										class="btn btn-sm btn-outline-primary px-3 rounded-3 fw-medium extra-small d-flex align-items-center justify-content-center gap-1"
 										onclick={() => abrirRespuesta(obs)}

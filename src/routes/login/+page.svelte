@@ -11,7 +11,7 @@
 
 	const usuariosPrueba = [
 		{ rol: 'estudiante', etiqueta: 'Estudiante', icono: 'bi-mortarboard',
-		usuario: { id_user: 1, nombre: 'Owen', apellido: 'Sanchez', rol: 'estudiante',
+		usuario: { id_user: 5, nombre: 'Owen', apellido: 'Sanchez', rol: 'estudiante',
 					facultad: 'FACULTAD DE INGENIERÍA',
 					programa: 'PROGRAMA DE INGENIERÍA DE SISTEMAS Y COMPUTACIÓN' }, ruta: '/' },
 		{ rol: 'profesor', etiqueta: 'Profesor', icono: 'bi-person-workspace',
