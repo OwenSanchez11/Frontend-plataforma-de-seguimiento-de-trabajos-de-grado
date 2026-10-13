@@ -297,7 +297,7 @@
 								<div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2">
 									<span class="extra-small text-muted">Última entrega: {item.fechaEntrega}</span>
 									<button class="btn btn-sm btn-outline-primary extra-small px-3 rounded-3 d-flex align-items-center gap-1">
-										<i class="bi bi-eye"></i> Ver Expediente
+										<i class="bi bi-eye"></i> Ver Detalles
 									</button>
 								</div>
 							</div>
