@@ -54,16 +54,6 @@
 			<p class="text-secondary small mb-0">Identifícate con tus credenciales universitarias autorizadas.</p>
 		</div>
 
-		<div class="bg-light p-1 rounded-3 d-flex mb-4 border">
-			<button
-				type="button"
-				class="btn btn-sm flex-fill rounded-2 fw-medium border-0 py-2 {tabActiva === 'credenciales' ? 'btn-white shadow-sm text-primary' : 'text-secondary'}"
-				on:click={() => (tabActiva = 'credenciales')}
-			>
-				<i class="bi bi-person-vcard me-1"></i> Credenciales
-			</button>
-		</div>
-
 		<form on:submit|preventDefault={handleLogin}>
 			<div class="mb-3">
 				<div class="d-flex justify-content-between align-items-center mb-1">
