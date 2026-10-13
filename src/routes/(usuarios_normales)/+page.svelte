@@ -7,6 +7,7 @@
 	import { sesion } from '$lib/sesion.svelte.js';
 
 	let proyecto = $state(null);
+	let avances = $state([]);
 	let cargando = $state(true);
 	let error = $state('');
 	let sinTrabajo = $state(false);
@@ -27,9 +28,10 @@
 			}
 
 			const respuestaAvances = await getAvancePorTrabajo(trabajo.id_trabajo_grado);
-			const avances = Array.isArray(respuestaAvances) ? respuestaAvances : [];
+			avances = Array.isArray(respuestaAvances) ? respuestaAvances : [];
+			const avancesActivos = avances.filter((avance) => avance.estado);
 			const hoy = inicioDelDia(new Date());
-			const pendientes = avances
+			const pendientes = avancesActivos
 				.map((avance) => ({ ...avance, fechaLimiteLocal: parsearFechaLocal(avance.fecha_limite) }))
 				.filter((avance) =>
 					!esAprobado(avance) &&
@@ -37,9 +39,9 @@
 					inicioDelDia(avance.fechaLimiteLocal) >= hoy
 				)
 				.sort((a, b) => a.fechaLimiteLocal - b.fechaLimiteLocal);
-			const aprobados = avances.filter(esAprobado).length;
-			const avanceGlobal = avances.length
-				? Math.round((aprobados / avances.length) * 100)
+			const aprobados = avancesActivos.filter(esAprobado).length;
+			const avanceGlobal = avancesActivos.length
+				? Math.round((aprobados / avancesActivos.length) * 100)
 				: 0;
 
 			proyecto = {
@@ -49,7 +51,7 @@
 				titulo: trabajo.titulo ?? 'Trabajo de grado asignado',
 				descripcion: trabajo.descripcion ?? '',
 				avanceGlobal,
-				faseActual: `Fase ${aprobados} de ${avances.length} completadas`,
+				faseActual: `Fase ${aprobados} de ${avancesActivos.length} completadas`,
 				hitoCritico: pendientes[0]
 					? { nombre: pendientes[0].titulo, limite: pendientes[0].fechaLimiteLocal }
 					: null
@@ -65,7 +67,7 @@
 
 <div class="d-flex bg-light min-vh-100">
 	<main class="flex-grow-1 p-4 overflow-x-hidden">
-		<BannerBienvenida usuario={sesion.usuario} {proyecto} {cargando} />
+		<BannerBienvenida usuario={sesion.usuario} {proyecto} {avances} {cargando} />
 		{#if error}
 			<div class="alert alert-danger small">{error}</div>
 		{:else if sinTrabajo && !cargando}

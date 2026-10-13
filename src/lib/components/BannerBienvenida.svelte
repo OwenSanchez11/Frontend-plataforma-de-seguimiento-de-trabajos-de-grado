@@ -1,10 +1,11 @@
 <!-- components/BannerBienvenida.svelte -->
 <script>
 	import { inicioDelDia, parsearFechaLocal } from '$lib/fechas';
+	import BarraProgreso from '$lib/components/BarraProgreso.svelte';
 
 	// usuario: { nombre, apellido, rol, facultad?, programa? }
 	// proyecto: solo para estudiantes (null para los demás roles)
-	let { usuario, proyecto = null, cargando = false } = $props();
+	let { usuario, proyecto = null, avances = [], cargando = false } = $props();
 
 	const ETIQUETA_ROL = {
 		estudiante: 'Estudiante',
@@ -103,16 +104,7 @@
 					</div>
 				</div>
 
-				<div class="progress rounded-pill bg-light border" style="height: 10px;">
-					<div
-						class="progress-bar bg-primary progress-bar-striped progress-bar-animated rounded-pill"
-						role="progressbar"
-						style="width: {proyecto.avanceGlobal}%;"
-						aria-valuenow={proyecto.avanceGlobal}
-						aria-valuemin="0"
-						aria-valuemax="100"
-					></div>
-				</div>
+				<BarraProgreso {avances} compact />
 			</div>
 
 			<!-- Hito crítico: solo si hay una entrega pendiente -->
