@@ -159,12 +159,7 @@
 			</span>
 		</div>
 
-		<button
-			type="button"
-			class="btn btn-light border border-1 w-100 py-2 fw-medium text-secondary rounded-3 d-flex align-items-center justify-content-center gap-2"
-		>
-			<i class="bi bi-person-badge text-primary"></i> Ingresar con Cuenta de Red Universitaria
-		</button>
+
 	</div>
 </main>
 
