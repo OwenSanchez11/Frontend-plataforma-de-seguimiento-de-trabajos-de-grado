@@ -40,14 +40,17 @@
 					? respuesta.data
 					: Array.isArray(respuesta?.items)
 						? respuesta.items
+						: Array.isArray(respuesta?.trabajos)
+							? respuesta.trabajos
 						: [];
 			
 			trabajosAsignados = datos.map((t) => {
 				const equipo = Array.isArray(t.equipo) ? t.equipo : [];
-				const est = equipo.find((e) => e.rol_proyecto?.toLowerCase().includes('estudiante'));
+				const est = equipo.find((e) => String(e.rol_proyecto ?? '').toLowerCase().includes('estudiante'));
+				const id = t.id_trabajo_grado ?? t.id;
 				return {
-					id: t.id_trabajo_grado,
-					titulo: t.titulo,
+					id,
+					titulo: String(t.titulo ?? t.nombre_trabajo ?? `Trabajo ${id ?? ''}`).trim(),
 					estudiante: est ? `${est.nombre} ${est.apellido}` : 'Sin estudiante asignado',
 					carrera: t.carrera ?? '—',
 					rolProfesor: t.rol_docente ?? '—',
@@ -75,8 +78,8 @@
 	let trabajosFiltrados = $derived(
 		trabajosAsignados.filter(
 			(t) =>
-				t.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
-				t.estudiante.toLowerCase().includes(busqueda.toLowerCase()) ||
+				(t.titulo ?? '').toLowerCase().includes(busqueda.toLowerCase()) ||
+				(t.estudiante ?? '').toLowerCase().includes(busqueda.toLowerCase()) ||
 				String(t.id).toLowerCase().includes(busqueda.toLowerCase())
 		)
 	);
@@ -295,10 +298,9 @@
 								</div>
 
 								<div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2">
-									<span class="extra-small text-muted">Última entrega: {item.fechaEntrega}</span>
-									<button class="btn btn-sm btn-outline-primary extra-small px-3 rounded-3 d-flex align-items-center gap-1">
+									<a href="/evaluaciones/{item.id}" class="btn btn-sm btn-outline-primary extra-small px-3 rounded-3 d-flex align-items-center gap-1">
 										<i class="bi bi-eye"></i> Ver Detalles
-									</button>
+									</a>
 								</div>
 							</div>
 						</div>

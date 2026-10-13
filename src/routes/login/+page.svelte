@@ -11,7 +11,7 @@
 
 	const usuariosPrueba = [
 		{ rol: 'estudiante', etiqueta: 'Estudiante', icono: 'bi-mortarboard',
-		usuario: { id_user: 1, nombre: 'Owen', apellido: 'Sanchez', rol: 'estudiante',
+		usuario: { id_user: 5, nombre: 'Owen', apellido: 'Sanchez', rol: 'estudiante',
 					facultad: 'FACULTAD DE INGENIERÍA',
 					programa: 'PROGRAMA DE INGENIERÍA DE SISTEMAS Y COMPUTACIÓN' }, ruta: '/' },
 		{ rol: 'profesor', etiqueta: 'Profesor', icono: 'bi-person-workspace',
@@ -159,12 +159,7 @@
 			</span>
 		</div>
 
-		<button
-			type="button"
-			class="btn btn-light border border-1 w-100 py-2 fw-medium text-secondary rounded-3 d-flex align-items-center justify-content-center gap-2"
-		>
-			<i class="bi bi-person-badge text-primary"></i> Ingresar con Cuenta de Red Universitaria
-		</button>
+
 	</div>
 </main>
 

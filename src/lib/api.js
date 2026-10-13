@@ -69,7 +69,17 @@ export const getAvances = ({ idTrabajo = '' } = {}) => {
             )
         }
 
-        return res.status === 204 ? null : res.json();
+        if (res.status === 204) return null;
+
+        // Algunos endpoints confirman el POST con 201/200 y un cuerpo vacío.
+        // No tratamos esa respuesta exitosa como un fallo al parsear JSON.
+        const texto = await res.text();
+        if (!texto) return null;
+        try {
+            return JSON.parse(texto);
+        } catch {
+            return texto;
+        }
 
     }
 

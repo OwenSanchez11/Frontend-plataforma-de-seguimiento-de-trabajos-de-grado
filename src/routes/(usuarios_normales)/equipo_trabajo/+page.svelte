@@ -94,7 +94,11 @@ let equipo = $state([
     <div class="row g-3">
       {#each filtrado as trabajo (trabajo.id_trabajo_grado)}
         <div class="col-lg-6">
-          <div class="card shadow-sm h-100">
+          <a
+            href="/evaluaciones/{trabajo.id_trabajo_grado}"
+            class="card shadow-sm h-100 text-decoration-none text-reset equipo-card"
+            aria-label="Abrir expediente de {trabajo.titulo}"
+          >
             <div class="card-header d-flex justify-content-between align-items-center">
               <strong>{trabajo.titulo}</strong>
               <span class="badge text-bg-{colorEstado(trabajo.estado)}">{trabajo.estado}</span>
@@ -121,9 +125,22 @@ let equipo = $state([
                 {/each}
               </div>
             </div>
-          </div>
+          </a>
         </div>
       {/each}
     </div>
   {/if}
 </div>
+
+<style>
+  .equipo-card {
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+
+  .equipo-card:hover,
+  .equipo-card:focus-visible {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12) !important;
+    transform: translateY(-2px);
+  }
+</style>
