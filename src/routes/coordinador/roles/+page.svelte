@@ -22,6 +22,11 @@
     let guardando = $state(false);
     let error = $state('');
     let mensaje = $state('');
+    let asignacionEditando = $state(null);
+    let usuarioAsignacionEdit = $state('');
+    let observacionesAsignacionEdit = $state('');
+    let fechaFinalizacionAsignacionEdit = $state('');
+    let errorAsignacionEdit = $state('');
 
     let busquedaDirector = $state('');
     let busquedaJurado1 = $state('');
@@ -104,6 +109,26 @@
         )
     );
 
+    let estudiantesDisponibles = $derived(
+        usuarios
+            .filter(usuario => estaActivo(usuario) && Number(usuario.id_rol) === 5)
+            .map(usuario => ({
+                ...usuario,
+                id: usuario.id_user,
+                nombre: nombreCompleto(usuario)
+            }))
+    );
+
+    let usuariosDisponiblesAsignacionEdit = $derived(
+        asignacionEditando
+            ? Number(asignacionEditando.id_rol_proyecto) === 1
+                ? directoresDisponibles
+                : Number(asignacionEditando.id_rol_proyecto) === 2
+                    ? estudiantesDisponibles
+                    : evaluadoresDisponibles
+            : []
+    );
+
     let asignacionesTrabajo = $derived(
         equiposTrabajo.filter(equipo =>
             Number(equipo.id_trabajo_grado) ===
@@ -118,6 +143,7 @@
 
             return {
                 id: asignacion.id_equipo,
+                id_rol_proyecto: asignacion.id_rol_proyecto,
                 docente: usuario
                     ? nombreCompleto(usuario)
                     : `Usuario #${asignacion.id_usuario}`,
@@ -426,6 +452,74 @@
             error = e.message || 'No fue posible eliminar la asignación.';
         }
     }
+
+    function abrirEditarAsignacion(asignacionId) {
+        const asignacion = equiposTrabajo.find(
+            equipo => Number(equipo.id_equipo) === Number(asignacionId)
+        );
+        if (!asignacion) return;
+
+        asignacionEditando = asignacion;
+        usuarioAsignacionEdit = String(asignacion.id_usuario ?? '');
+        observacionesAsignacionEdit = asignacion.observaciones ?? '';
+        fechaFinalizacionAsignacionEdit = asignacion.fecha_finalizacion
+            ? String(asignacion.fecha_finalizacion).slice(0, 10)
+            : '';
+        errorAsignacionEdit = '';
+    }
+
+    function cerrarEditarAsignacion() {
+        if (guardando) return;
+        asignacionEditando = null;
+        usuarioAsignacionEdit = '';
+        observacionesAsignacionEdit = '';
+        fechaFinalizacionAsignacionEdit = '';
+        errorAsignacionEdit = '';
+    }
+
+    async function guardarEdicionAsignacion() {
+        if (!asignacionEditando || !usuarioAsignacionEdit || guardando) {
+            errorAsignacionEdit = 'Selecciona una persona para esta asignación.';
+            return;
+        }
+
+        const nuevoUsuarioId = Number(usuarioAsignacionEdit);
+        const conflicto = asignacionesTrabajo.some(equipo =>
+            Number(equipo.id_equipo) !== Number(asignacionEditando.id_equipo) &&
+            Number(equipo.id_usuario) === nuevoUsuarioId &&
+            [1, 2, 3].includes(Number(equipo.id_rol_proyecto))
+        );
+        if (conflicto) {
+            errorAsignacionEdit = 'Esa persona ya tiene otro rol asignado en este trabajo.';
+            return;
+        }
+
+        guardando = true;
+        errorAsignacionEdit = '';
+        try {
+            await editarEquipoTrabajo(asignacionEditando.id_equipo, {
+                id_equipo: Number(asignacionEditando.id_equipo),
+                id_trabajo_grado: Number(asignacionEditando.id_trabajo_grado),
+                id_usuario: nuevoUsuarioId,
+                id_rol_proyecto: Number(asignacionEditando.id_rol_proyecto),
+                observaciones: observacionesAsignacionEdit.trim() || null,
+                fecha_asignacion: asignacionEditando.fecha_asignacion ?? null,
+                fecha_finalizacion: fechaFinalizacionAsignacionEdit || null,
+                estado: asignacionEditando.estado ?? true
+            });
+            asignacionEditando = null;
+            usuarioAsignacionEdit = '';
+            observacionesAsignacionEdit = '';
+            fechaFinalizacionAsignacionEdit = '';
+            mensaje = 'La asignación se actualizó correctamente.';
+            await cargarDatos();
+        } catch (e) {
+            console.error('Error al editar la asignación:', e);
+            errorAsignacionEdit = e?.message ?? 'No se pudo actualizar la asignación.';
+        } finally {
+            guardando = false;
+        }
+    }
 </script>
 
 {#if cargando}
@@ -541,6 +635,7 @@
                                 <button
                                     type="button"
                                     class="btn text-start w-100"
+                                    onpointerdown={(event) => event.preventDefault()}
                                     onclick={() => seleccionarDirector(docente)}
                                 >
                                     {docente.nombre}
@@ -600,6 +695,7 @@
                                         <button
                                             type="button"
                                             class="btn text-start w-100"
+                                            onpointerdown={(event) => event.preventDefault()}
                                             onclick={() => seleccionarJurado1(docente)}
                                         >
                                             {docente.nombre}
@@ -651,6 +747,7 @@
                                         <button
                                             type="button"
                                             class="btn text-start w-100"
+                                            onpointerdown={(event) => event.preventDefault()}
                                             onclick={() => seleccionarJurado2(docente)}
                                         >
                                             {docente.nombre}
@@ -710,6 +807,18 @@
                                 <td>{asignacion.rol}</td>
                                 <td>{asignacion.fecha}</td>
                                 <td>
+                                    {#if [1, 2, 3].includes(Number(asignacion.id_rol_proyecto))}
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-primary me-1"
+                                            title="Editar asignación"
+                                            aria-label="Editar asignación"
+                                            disabled={guardando}
+                                            onclick={() => abrirEditarAsignacion(asignacion.id)}
+                                        >
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    {/if}
                                     <button
                                         type="button"
                                         class="btn btn-sm btn-outline-danger"
@@ -735,3 +844,92 @@
         </div>
     </section>
 {/if}
+
+{#if asignacionEditando}
+    <div
+        class="modal-backdrop-custom"
+        role="presentation"
+        onclick={(event) => {
+            if (event.target === event.currentTarget) cerrarEditarAsignacion();
+        }}
+        onkeydown={(event) => {
+            if (event.key === 'Escape') cerrarEditarAsignacion();
+        }}
+    >
+        <div class="modal-content-custom" role="dialog" aria-modal="true" aria-labelledby="titulo-editar-asignacion">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 id="titulo-editar-asignacion" class="fw-bold mb-0">Editar asignación</h5>
+                <button type="button" class="btn-close" aria-label="Cerrar" onclick={cerrarEditarAsignacion} disabled={guardando}></button>
+            </div>
+
+            <p class="text-muted small">
+                Rol: <strong>{obtenerRolProyecto(asignacionEditando.id_rol_proyecto)}</strong>
+            </p>
+            <label for="usuarioAsignacionEdit" class="form-label">Persona asignada</label>
+            <select id="usuarioAsignacionEdit" class="form-select" bind:value={usuarioAsignacionEdit} disabled={guardando}>
+                <option value="">Selecciona una persona</option>
+                {#each usuariosDisponiblesAsignacionEdit as usuario (usuario.id_user)}
+                    <option value={String(usuario.id_user)}>{usuario.nombre}</option>
+                {/each}
+            </select>
+
+            <div class="mt-3">
+                <label for="fechaFinalizacionAsignacionEdit" class="form-label">Fecha de finalización</label>
+                <input
+                    id="fechaFinalizacionAsignacionEdit"
+                    type="date"
+                    class="form-control"
+                    bind:value={fechaFinalizacionAsignacionEdit}
+                    disabled={guardando}
+                />
+            </div>
+            <div class="mt-3">
+                <label for="observacionesAsignacionEdit" class="form-label">Observaciones</label>
+                <textarea
+                    id="observacionesAsignacionEdit"
+                    class="form-control"
+                    rows="3"
+                    bind:value={observacionesAsignacionEdit}
+                    placeholder="Observaciones de esta asignación"
+                    disabled={guardando}
+                ></textarea>
+            </div>
+
+            {#if errorAsignacionEdit}
+                <div class="alert alert-danger py-2 mt-3 mb-0" role="alert">{errorAsignacionEdit}</div>
+            {/if}
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <button type="button" class="btn btn-light" onclick={cerrarEditarAsignacion} disabled={guardando}>Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick={guardarEdicionAsignacion} disabled={guardando || !usuarioAsignacionEdit}>
+                    {#if guardando}
+                        <span class="spinner-border spinner-border-sm me-1"></span> Guardando...
+                    {:else}
+                        Guardar cambios
+                    {/if}
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<style>
+    .modal-backdrop-custom {
+        position: fixed;
+        inset: 0;
+        z-index: 1050;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        background: rgb(0 0 0 / 50%);
+    }
+
+    .modal-content-custom {
+        width: min(100%, 32rem);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        background: #fff;
+        box-shadow: 0 1rem 3rem rgb(0 0 0 / 20%);
+    }
+</style>

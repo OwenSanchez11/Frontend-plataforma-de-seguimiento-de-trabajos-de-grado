@@ -12,6 +12,8 @@
   let errorFormulario = $state('');
   let desactivando = $state(false);
   let errorDesactivar = $state('');
+  let errorEstado = $state('');
+  let actualizandoEstado = $state(null);
 
   let busqueda = $state("");
   let filtroRol = $state("todos");
@@ -87,8 +89,33 @@
     return new Date(fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
-  function toggleEstado(id) {
-    usuarios = usuarios.map(u => u.id_user === id ? { ...u, estado: !u.estado } : u);
+  async function toggleEstado(id) {
+    const usuario = usuarios.find((u) => u.id_user === id);
+    if (!usuario || actualizandoEstado !== null) return;
+
+    actualizandoEstado = id;
+    errorEstado = '';
+    const nuevoEstado = !usuario.estado;
+    try {
+      await editarUsuario(id, {
+        username: usuario.username,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        email: usuario.email,
+        documento: usuario.documento,
+        contrasena: usuario.contrasena,
+        id_rol: usuario.id_rol,
+        id_carrera: usuario.id_carrera ?? null,
+        estado: nuevoEstado
+      });
+      usuarios = usuarios.map((u) =>
+        u.id_user === id ? { ...u, estado: nuevoEstado } : u
+      );
+    } catch (err) {
+      errorEstado = err?.message ?? 'No se pudo cambiar el estado del usuario.';
+    } finally {
+      actualizandoEstado = null;
+    }
   }
 
   //  MODAL CREAR / EDITAR
@@ -300,6 +327,9 @@
   </div>
 
   <div class="card border-0 shadow-sm rounded-4 p-3">
+    {#if errorEstado}
+      <div class="alert alert-danger py-2 mb-3" role="alert">{errorEstado}</div>
+    {/if}
     <div class="table-responsive">
       <table class="table align-middle mb-0">
         <thead>
@@ -342,14 +372,12 @@
                   <button
                     class="btn btn-sm {u.estado ? 'btn-outline-success' : 'btn-outline-secondary'} rounded-pill"
                     onclick={() => toggleEstado(u.id_user)}
+                    disabled={actualizandoEstado !== null}
                   >
-                    {u.estado ? 'Activo' : 'Inactivo'}
+                    {actualizandoEstado === u.id_user ? 'Guardando...' : u.estado ? 'Activo' : 'Inactivo'}
                   </button>
                 </td>
                 <td class="text-end">
-                  <button class="btn btn-sm btn-light rounded-circle" title="Ver detalle">
-                    <i class="bi bi-eye"></i>
-                  </button>
                   <button class="btn btn-sm btn-light rounded-circle" title="Editar" onclick={() => abrirEditar(u)}>
                     <i class="bi bi-pencil"></i>
                   </button>

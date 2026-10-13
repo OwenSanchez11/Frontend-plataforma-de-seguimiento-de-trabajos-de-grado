@@ -397,7 +397,7 @@
 
 			<div class="row g-4 mb-4">
 				<!-- Entregables pendientes (desde avances) -->
-				<div class="col-12 col-xl-8">
+				<div class="col-12">
 					<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4 h-100">
 						<div class="mb-4">
 							<h3 class="h5 fw-bold text-dark mb-1">Entregables Activos y Requisitos Pendientes</h3>
@@ -446,36 +446,6 @@
 					</div>
 				</div>
 
-				<div class="col-12 col-xl-4 d-flex flex-column gap-4">
-					<!-- Comité asignado -->
-					<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4">
-						<div class="d-flex align-items-center justify-content-between mb-3">
-							<h3 class="h6 fw-bold text-dark mb-0">Comité Asignado</h3>
-							<span class="badge bg-light text-primary border extra-small">{comite.length} Miembros</span>
-						</div>
-
-						<div class="d-flex flex-column gap-3">
-							{#each comite as miembro, i (miembro.id_user)}
-								{#if i > 0}
-									<hr class="my-0 text-muted opacity-25" />
-								{/if}
-								<div class="d-flex align-items-center gap-3">
-									<div class="bg-primary-subtle text-primary rounded-circle p-2 d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 40px; height: 40px;">
-										{iniciales(miembro)}
-									</div>
-									<div class="lh-sm min-w-0">
-										<div class="d-flex align-items-center gap-2">
-											<strong class="text-dark extra-small text-truncate">{nombreCompleto(miembro)}</strong>
-											<span class="badge bg-primary text-white extra-small">{miembro.rol_proyecto}</span>
-										</div>
-										<a href="mailto:{miembro.correo}" class="extra-small text-decoration-none text-muted text-truncate d-block">{miembro.correo}</a>
-									</div>
-								</div>
-							{/each}
-						</div>
-					</div>
-
-				</div>
 			</div>
 			{:else}
 				<!-- Pestaña Avances: registro general -->
