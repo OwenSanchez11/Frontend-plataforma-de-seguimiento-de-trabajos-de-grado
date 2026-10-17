@@ -2,7 +2,6 @@
   import favicon from '$lib/assets/favicon.svg';
   import 'bootstrap/dist/css/bootstrap.min.css';
   import '../app.css';
-  import DevRoleSwitcher from '$lib/components/DevRoleSwitcher.svelte';
 
   let { children } = $props();
 </script>

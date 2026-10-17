@@ -1,27 +1,35 @@
 // src/lib/sesion.svelte.js
-const CLAVE = 'sesion_simulada_v2'; // clave nueva, para no leer lo que guardó la versión anterior
+const CLAVE = 'sesion_v3'; // clave nueva, para no leer lo que guardó la versión anterior
 
 function leerGuardado() {
 	try {
-		return JSON.parse(localStorage.getItem(CLAVE));
+		return JSON.parse(localStorage.getItem(CLAVE)) ?? { usuario: null, token: null };
 	} catch {
-		return null;
+		return { usuario: null, token: null};
 	}
 }
 
-export const sesion = $state({ usuario: leerGuardado() });
+const guardado = leerGuardado();
 
-export function iniciarSesion(usuario) {
+export const sesion = $state({ usuario: guardado.usuario, token: guardado.token });
+
+export function iniciarSesion(usuario, token) {
 	sesion.usuario = usuario;
-	try { localStorage.setItem(CLAVE, JSON.stringify(usuario)); } catch {}
+	sesion.token = token
+	try { localStorage.setItem(CLAVE, JSON.stringify({ usuario, token })); } catch {}
 }
 
 export function cerrarSesion() {
 	sesion.usuario = null;
+	sesion.token = null
 	try { localStorage.removeItem(CLAVE); } catch {}
 }
 
 export function usuarioActual() {
 	return sesion.usuario;
+}
+
+export function obtenerToken() {
+	return sesion.token
 }
 

@@ -4,7 +4,6 @@
         getTrabajos,
         getUsuarios,
         getEquiposTrabajo,
-        getRolesProyecto,
         crearEquipoTrabajo,
         editarEquipoTrabajo,
         eliminarEquipoTrabajo
@@ -55,12 +54,6 @@
         return usuarios.find(
             usuario => Number(usuario.id_user) === Number(idUsuario)
         );
-    }
-
-    function obtenerRolProyecto(idRolProyecto) {
-        return rolesProyecto.find(
-            rol => Number(rol.id_rol_proyecto) === Number(idRolProyecto)
-        )?.nombre ?? 'Rol no identificado';
     }
 
     function obtenerTrabajo(idTrabajo) {
