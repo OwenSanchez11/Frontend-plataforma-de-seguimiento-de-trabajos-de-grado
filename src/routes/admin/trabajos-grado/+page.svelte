@@ -2,7 +2,8 @@
 
   import {onMount} from 'svelte';
   import {getTrabajos, getCarreras, getFacultades, crearTrabajoGrado, actualizarTrabajoGrado} from '$lib/api'
- 
+  import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
+
   let trabajos = $state([]);
   let carreras = $state([]);
   let facultades = $state([]);

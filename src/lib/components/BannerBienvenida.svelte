@@ -1,10 +1,11 @@
 <!-- components/BannerBienvenida.svelte -->
 <script>
 	import { inicioDelDia, parsearFechaLocal } from '$lib/fechas';
+	import BarraProgreso from '$lib/components/BarraProgreso.svelte';
 
 	// usuario: { nombre, apellido, rol, facultad?, programa? }
 	// proyecto: solo para estudiantes (null para los demás roles)
-	let { usuario, proyecto = null, cargando = false } = $props();
+	let { usuario, proyecto = null, avances = [], cargando = false } = $props();
 
 	const ETIQUETA_ROL = {
 		estudiante: 'Estudiante',
@@ -45,31 +46,6 @@
 </script>
 
 <div class="mb-4">
-	<!-- Cabecera: la ven todos los roles -->
-	<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-		<div>
-			{#if cargando}
-				<div class="placeholder-glow">
-					<span class="placeholder col-6 mb-2"></span>
-					<span class="placeholder col-8 placeholder-lg"></span>
-				</div>
-			{:else}
-				{#if contexto}
-					<span class="extra-small text-muted fw-bold text-uppercase tracking-wider">{contexto}</span>
-				{/if}
-				<h1 class="h3 fw-bold text-dark mb-0">
-					Bienvenido de nuevo, {nombreCompleto}
-					<span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6 align-middle ms-2">
-						{etiquetaRol}
-					</span>
-				</h1>
-			{/if}
-		</div>
-		<div class="text-muted small d-flex align-items-center gap-2 bg-white px-3 py-1.5 rounded-3 border shadow-sm">
-			<i class="bi bi-calendar3 text-primary"></i>
-			<span>{fechaHoy}</span>
-		</div>
-	</div>
 
 	<!-- Tarjeta del proyecto: solo si el usuario tiene un trabajo de grado -->
 	{#if proyecto && !cargando}
@@ -103,16 +79,7 @@
 					</div>
 				</div>
 
-				<div class="progress rounded-pill bg-light border" style="height: 10px;">
-					<div
-						class="progress-bar bg-primary progress-bar-striped progress-bar-animated rounded-pill"
-						role="progressbar"
-						style="width: {proyecto.avanceGlobal}%;"
-						aria-valuenow={proyecto.avanceGlobal}
-						aria-valuemin="0"
-						aria-valuemax="100"
-					></div>
-				</div>
+				<BarraProgreso {avances} compact />
 			</div>
 
 			<!-- Hito crítico: solo si hay una entrega pendiente -->

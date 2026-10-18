@@ -1,95 +1,99 @@
 <script>
-  // Datos de ejemplo. El backend debería devolver el nombre de quien subió
-  // el avance (JOIN con usuarios) y el título del trabajo, no solo los ids.
-  let avances = $state([
-    {
-      id_avance: 1,
-      trabajo: 'Sistema IoT para calidad del aire',
-      subido_por: 'Laura Pérez',
-      titulo: 'Marco teórico',
-      descripcion: 'Primera versión del marco teórico con antecedentes.',
-      numero_version: 2,
-      nombre_archivo: 'marco_teorico_v2.pdf',
-      tamano_bytes: 2457600,
-      fecha_inicio: '2026-09-01',
-      fecha_entrega: '2026-09-20',
-      fecha_limite: '2026-09-22',
-      estado: 'En revisión',
-      dictamen: null
-    },
-    {
-      id_avance: 2,
-      trabajo: 'Sistema IoT para calidad del aire',
-      subido_por: 'Carlos Gómez',
-      titulo: 'Diseño de la metodología',
-      descripcion: 'Descripción de la metodología y cronograma.',
-      numero_version: 1,
-      nombre_archivo: 'metodologia_v1.docx',
-      tamano_bytes: 512000,
-      fecha_inicio: '2026-09-10',
-      fecha_entrega: null,
-      fecha_limite: '2026-10-01',
-      estado: 'Pendiente',
-      dictamen: null
-    },
-    {
-      id_avance: 3,
-      trabajo: 'Plataforma de gestión de mantenimientos',
-      subido_por: 'Sofía Ramírez',
-      titulo: 'Análisis de requisitos',
-      descripcion: 'Levantamiento de requisitos funcionales y no funcionales.',
-      numero_version: 3,
-      nombre_archivo: 'requisitos_v3.pdf',
-      tamano_bytes: 1048576,
-      fecha_inicio: '2026-08-15',
-      fecha_entrega: '2026-09-05',
-      fecha_limite: '2026-09-10',
-      estado: 'Aprobado',
-      dictamen: 'Cumple con los requisitos planteados. Buen trabajo.'
-    }
-  ]);
+  import { onMount } from 'svelte';
+  import { sesion } from '$lib/sesion.svelte.js';
+  import { editarAvance, getAvances, getTrabajoPorDocente, getUsuarios } from '$lib/api.js';
 
+  let avances = $state([]);
   const ESTADOS = ['Pendiente', 'En revisión', 'Aprobado', 'Requiere ajustes'];
-
   let busqueda = $state('');
   let filtroEstado = $state('');
-  let seleccionado = $state(null); // avance abierto en el modal
+  let seleccionado = $state(null);
   let dictamenTexto = $state('');
   let nuevoEstado = $state('');
-  let cargando = $state(false);
+  let cargando = $state(true);
+  let guardando = $state(false);
   let error = $state('');
-
   const hoy = new Date().toISOString().slice(0, 10);
 
-  let filtrados = $derived(
-    avances.filter((a) => {
-      const t = busqueda.toLowerCase();
-      const coincideTexto =
-        a.titulo.toLowerCase().includes(t) ||
-        a.trabajo.toLowerCase().includes(t) ||
-        a.subido_por.toLowerCase().includes(t);
-      const coincideEstado = !filtroEstado || a.estado === filtroEstado;
-      return coincideTexto && coincideEstado;
-    })
-  );
+  function obtenerLista(respuesta) {
+    if (Array.isArray(respuesta)) return respuesta;
+    if (Array.isArray(respuesta?.data)) return respuesta.data;
+    if (Array.isArray(respuesta?.items)) return respuesta.items;
+    return [];
+  }
 
+  function separarDictamen(dictamen, fechaEntrega) {
+    const texto = String(dictamen ?? '');
+    const match = texto.match(/^(Pendiente|En revisión|Aprobado|Requiere ajustes)(?:\s*—\s*|\s*:\s*|\s*\n)?/i);
+    if (match) {
+      const estado = ESTADOS.find((item) => item.toLowerCase() === match[1].toLowerCase()) ?? match[1];
+      return { estado, comentario: texto.slice(match[0].length).trim() };
+    }
+    return { estado: fechaEntrega ? 'En revisión' : 'Pendiente', comentario: texto };
+  }
+
+  async function cargarAvances() {
+    cargando = true;
+    error = '';
+    try {
+      const docente = sesion.usuario;
+      if (!docente?.id_user) throw new Error('No se encontró el docente en la sesión.');
+      const [respuestaTrabajos, respuestaAvances, respuestaUsuarios] = await Promise.all([
+        getTrabajoPorDocente(docente.id_user), getAvances(), getUsuarios()
+      ]);
+      const trabajos = obtenerLista(respuestaTrabajos);
+      const usuarios = obtenerLista(respuestaUsuarios);
+      const idsTrabajos = new Set(trabajos.map((trabajo) => Number(trabajo.id_trabajo_grado)));
+      avances = obtenerLista(respuestaAvances)
+        .filter((avance) => idsTrabajos.has(Number(avance.id_trabajo_grado)) && avance.estado !== false)
+        .map((avance) => {
+          const trabajo = trabajos.find((item) => Number(item.id_trabajo_grado) === Number(avance.id_trabajo_grado));
+          const estudiante = usuarios.find((item) => Number(item.id_user) === Number(avance.subido_por));
+          const revision = separarDictamen(avance.dictamen, avance.fecha_entrega);
+          return {
+            ...avance,
+            estadoDB: avance.estado,
+            subido_por_id: avance.subido_por,
+            trabajo: trabajo?.titulo ?? `Trabajo ${avance.id_trabajo_grado}`,
+            subido_por: `${estudiante?.nombre ?? ''} ${estudiante?.apellido ?? ''}`.trim() || estudiante?.username || `Usuario ${avance.subido_por}`,
+            estado: revision.estado,
+            comentarioRevision: revision.comentario
+          };
+        });
+    } catch (e) {
+      console.error('Error al cargar las entregas del docente:', e);
+      error = e?.message ?? 'No fue posible cargar las entregas.';
+    } finally {
+      cargando = false;
+    }
+  }
+
+  onMount(cargarAvances);
+
+  let filtrados = $derived(avances.filter((a) => {
+    const texto = busqueda.toLowerCase();
+    const coincideTexto = [a.titulo, a.trabajo, a.subido_por]
+      .some((valor) => String(valor ?? '').toLowerCase().includes(texto));
+    return coincideTexto && (!filtroEstado || a.estado === filtroEstado);
+  }));
   let porRevisar = $derived(avances.filter((a) => a.estado === 'En revisión').length);
-  let vencidos = $derived(avances.filter((a) => esVencido(a)).length);
+  let vencidos = $derived(avances.filter(esVencido).length);
   let aprobados = $derived(avances.filter((a) => a.estado === 'Aprobado').length);
 
-  function esVencido(a) {
-    return !a.fecha_entrega && a.fecha_limite < hoy;
+  function esVencido(avance) {
+    return !avance.fecha_entrega && avance.fecha_limite && String(avance.fecha_limite).slice(0, 10) < hoy;
   }
 
   function formatearTamano(bytes) {
+    if (!bytes) return 'Sin tamaño';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / 1048576).toFixed(1)} MB`;
   }
 
-  function formatearFecha(f) {
-    if (!f) return '—';
-    return new Date(f + 'T00:00:00').toLocaleDateString('es-CO', {
+  function formatearFecha(fecha) {
+    if (!fecha) return '—';
+    return new Date(`${String(fecha).slice(0, 10)}T00:00:00`).toLocaleDateString('es-CO', {
       day: '2-digit', month: 'short', year: 'numeric'
     });
   }
@@ -99,19 +103,47 @@
 
   function abrirModal(avance) {
     seleccionado = avance;
-    dictamenTexto = avance.dictamen ?? '';
+    dictamenTexto = avance.comentarioRevision;
     nuevoEstado = avance.estado;
+    error = '';
   }
 
   function cerrarModal() {
-    seleccionado = null;
+    if (!guardando) seleccionado = null;
   }
 
-  // Por ahora solo actualiza los datos locales; luego aquí va el PUT al backend.
-  function guardarDictamen() {
-    seleccionado.dictamen = dictamenTexto;
-    seleccionado.estado = nuevoEstado;
-    cerrarModal();
+  async function guardarDictamen() {
+    if (!seleccionado || guardando) return;
+    guardando = true;
+    error = '';
+    const comentario = dictamenTexto.trim();
+    const dictamen = comentario ? `${nuevoEstado} — ${comentario}` : nuevoEstado;
+    try {
+      await editarAvance(seleccionado.id_avance, {
+        id_trabajo_grado: Number(seleccionado.id_trabajo_grado),
+        titulo: seleccionado.titulo,
+        subido_por: Number(seleccionado.subido_por_id),
+        descripcion: seleccionado.descripcion ?? null,
+        numero_version: seleccionado.numero_version ?? null,
+        nombre_archivo: seleccionado.nombre_archivo ?? null,
+        ruta_archivo: seleccionado.ruta_archivo ?? null,
+        tamano_bytes: seleccionado.tamano_bytes ?? null,
+        fecha_inicio: seleccionado.fecha_inicio ?? null,
+        fecha_entrega: seleccionado.fecha_entrega ?? null,
+        fecha_limite: seleccionado.fecha_limite ?? null,
+        estado: seleccionado.estadoDB,
+        dictamen
+      });
+      avances = avances.map((avance) => avance.id_avance === seleccionado.id_avance
+        ? { ...avance, dictamen, estado: nuevoEstado, comentarioRevision: comentario }
+        : avance);
+      seleccionado = null;
+    } catch (e) {
+      console.error('Error al guardar el dictamen:', e);
+      error = e?.message ?? 'No fue posible guardar el dictamen.';
+    } finally {
+      guardando = false;
+    }
   }
 </script>
 
@@ -156,10 +188,9 @@
     </div>
   </div>
 
+  {#if error && !seleccionado}<div class="alert alert-danger">{error}</div>{/if}
   {#if cargando}
     <div class="text-center py-5"><div class="spinner-border"></div></div>
-  {:else if error}
-    <div class="alert alert-danger">{error}</div>
   {:else if filtrados.length === 0}
     <div class="alert alert-light border">No se encontraron avances.</div>
   {:else}
@@ -215,7 +246,7 @@
             <h5 class="modal-title mb-0">{seleccionado.titulo} <small class="text-muted">v{seleccionado.numero_version}</small></h5>
             <small class="text-muted">{seleccionado.trabajo}</small>
           </div>
-          <button class="btn-close" aria-label="Cerrar" onclick={cerrarModal}></button>
+          <button class="btn-close" aria-label="Cerrar" onclick={cerrarModal} disabled={guardando}></button>
         </div>
 
         <div class="modal-body">
@@ -238,6 +269,7 @@
             <button class="btn btn-sm btn-outline-secondary" disabled={!seleccionado.fecha_entrega}>Descargar</button>
           </div>
 
+          {#if error}<div class="alert alert-danger" role="alert">{error}</div>{/if}
           <hr />
           <h6>Dictamen</h6>
           <div class="mb-3">
@@ -254,8 +286,8 @@
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-light" onclick={cerrarModal}>Cancelar</button>
-          <button class="btn btn-primary" onclick={guardarDictamen}>Guardar dictamen</button>
+          <button class="btn btn-light" onclick={cerrarModal} disabled={guardando}>Cancelar</button>
+          <button class="btn btn-primary" onclick={guardarDictamen} disabled={guardando}>{guardando ? "Guardando..." : "Guardar dictamen"}</button>
         </div>
       </div>
     </div>

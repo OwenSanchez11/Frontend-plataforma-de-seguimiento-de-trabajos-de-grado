@@ -14,6 +14,8 @@
   let errorFormulario = $state('');
   let desactivando = $state(false);
   let errorDesactivar = $state('');
+  let errorEstado = $state('');
+  let actualizandoEstado = $state(null);
 
   onMount(async () => {
     const [resRoles, resModulos, resModulosRol] = await Promise.allSettled([getRoles(), getModulos(),getModulosRol()]);
@@ -55,8 +57,27 @@
     )
   );
 
-  function toggleEstado(id_rol) {
-    roles = roles.map(r => r.id_rol === id_rol ? { ...r, estado: !r.estado } : r);
+  async function toggleEstado(id_rol) {
+    const rol = rolesConModulos.find((r) => r.id_rol === id_rol);
+    if (!rol || actualizandoEstado !== null) return;
+
+    actualizandoEstado = id_rol;
+    errorEstado = '';
+    const nuevoEstado = !rol.estado;
+    try {
+      await editarRol(id_rol, {
+        rol_nombre: rol.rol_nombre,
+        estado: nuevoEstado,
+        modulos: rol.modulos.map((modulo) => modulo.id_modulo)
+      });
+      roles = roles.map((r) =>
+        r.id_rol === id_rol ? { ...r, estado: nuevoEstado } : r
+      );
+    } catch (e) {
+      errorEstado = e?.message ?? 'No se pudo cambiar el estado del rol.';
+    } finally {
+      actualizandoEstado = null;
+    }
   }
 
   function verModulos(rol) {
@@ -197,6 +218,9 @@
   </div>
 
   <div class="card border-0 shadow-sm rounded-4 p-3">
+    {#if errorEstado}
+      <div class="alert alert-danger py-2 mb-3" role="alert">{errorEstado}</div>
+    {/if}
     <div class="table-responsive">
       <table class="table align-middle mb-0">
         <thead>
@@ -238,8 +262,9 @@
                   <button
                     class="btn btn-sm {r.estado ? 'btn-outline-success' : 'btn-outline-secondary'} rounded-pill"
                     onclick={() => toggleEstado(r.id_rol)}
+                    disabled={actualizandoEstado !== null}
                   >
-                    {r.estado ? 'Activo' : 'Inactivo'}
+                    {actualizandoEstado === r.id_rol ? 'Guardando...' : r.estado ? 'Activo' : 'Inactivo'}
                   </button>
                 </td>
                 <td class="text-end">

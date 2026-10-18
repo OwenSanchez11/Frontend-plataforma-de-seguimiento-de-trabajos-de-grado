@@ -1,10 +1,21 @@
 
     import {PUBLIC_API_URL} from '$env/static/public';
+    import { obtenerToken } from '$lib/sesion.svelte.js';
+
+    function headersAutenticados(headers = {}) {
+        const token = obtenerToken();
+        return {
+            ...headers,
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+    }
 
     //función para hacer fetch a las rutas de los get en la DB
 
     async function get(ruta) {
-        const res = await fetch(`${PUBLIC_API_URL}${ruta}`)
+        const res = await fetch(`${PUBLIC_API_URL}${ruta}`, {
+            headers: headersAutenticados()
+        })
         if(!res.ok) {
             const error = await res.json().catch(() => null);
             const mensaje = typeof error?.detail === 'string'
@@ -58,7 +69,7 @@ export const getAvances = ({ idTrabajo = '' } = {}) => {
     async function request(ruta, metodo, datos = null) {
         const res = await fetch(`${PUBLIC_API_URL}${ruta}`, {
             method: metodo,
-            headers: { 'Content-type': 'application/json' },
+            headers: headersAutenticados({ 'Content-type': 'application/json' }),
             body: datos ? JSON.stringify(datos) : undefined
         })
 
@@ -112,6 +123,16 @@ export const getAvances = ({ idTrabajo = '' } = {}) => {
     export const eliminarEquipoTrabajo = (id) => request(`/equipo-trabajo/${id}`, 'DELETE');
     export const getRolesProyecto = () => get('/roles-proyecto/');
 
-
+    //función para loguearse
+    export async function login(email, contrasena) {
+        const res = await fetch(`${PUBLIC_API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, contrasena })
+        })
+        
+        if (!res.ok) throw new Error('Correo o contraseña incorrectos');
+        return await res.json();
+    }
 
 

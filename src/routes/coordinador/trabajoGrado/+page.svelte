@@ -393,7 +393,7 @@
     >
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
-                <form onsubmit={(event) => {
+                <form class="modal-form" onsubmit={(event) => {
                     event.preventDefault();
                     guardarTrabajo();
                 }}>
@@ -598,3 +598,26 @@
         </div>
     </div>
 {/if}
+
+<style>
+    /* The form wraps the header, body and footer, so it must pass the modal's
+       constrained height through to .modal-body for Bootstrap scrolling to work. */
+    .modal-form {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .modal-form .modal-header,
+    .modal-form .modal-footer {
+        flex-shrink: 0;
+    }
+
+    .modal-form .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
+</style>

@@ -351,10 +351,3 @@
     </div>
 </section>
 
-{#if !cargando && !idCarrera}
-    <div class="alert alert-warning">
-        No se encontró el identificador de carrera en la sesión.
-        Por ahora se muestran los trabajos de todas las carreras.
-        Revisa los datos guardados al iniciar sesión.
-    </div>
-{/if}
