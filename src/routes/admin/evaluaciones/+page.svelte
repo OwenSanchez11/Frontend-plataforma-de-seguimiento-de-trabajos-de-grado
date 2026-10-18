@@ -1,13 +1,14 @@
 <script>
 
 	import {onMount} from 'svelte';
-	import { getEvaluaciones, getCarreras, getFacultades, getTrabajos, getUsuarios, crearEvaluacion, editarEvaluacion } from '$lib/api';
+	import { getEvaluaciones, getCarreras, getFacultades, getTrabajos, getAvances, crearEvaluacion, editarEvaluacion } from '$lib/api';
+	import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
 
 	let evaluaciones = $state([]);
 	let facultades = $state([]);
 	let carreras = $state([]);
 	let trabajosGrado = $state([]);
-	let usuarios = $state([]);
+	let avances = $state([]);
 	let guardando = $state(false);
 
 	let idFacultad= $state('');
@@ -49,11 +50,11 @@
 	onMount(async () => {
 		cargarEvaluaciones();
 
-		const [resFacultades, resCarreras, resTrabajos, resUsuarios] = await Promise.allSettled([
+		const [resFacultades, resCarreras, resTrabajos, resAvances] = await Promise.allSettled([
 			getFacultades(),
 			getCarreras(),
 			getTrabajos(),
-			getUsuarios()
+			getAvances()
 		]);
 
 		if (resFacultades.status === 'fulfilled') {
@@ -77,21 +78,18 @@
 			error = 'No se pudieron cargar los trabajos de grado.';
 		}
 
-		if (resUsuarios.status === 'fulfilled') {
-			usuarios = resUsuarios.value;
+		if (resAvances.status === 'fulfilled') {
+			avances = resAvances.value;
 		} else {
-			console.error(resUsuarios.reason);
-			error = 'No se pudieron cargar los usuarios.';
+			console.error(resAvances.reason);
+			error = 'No se pudieron cargar los avances.';
 		}
-		console.log('trabajo ejemplo:', trabajosGrado[0]);
-		console.log('usuario ejemplo:', usuarios[0]);
-
 	});
 
 	let formulario = $state({
 		id_evaluacion: null,
 		id_trabajo_grado: '',
-		id_usuario: '',
+		id_avance: '',
 		nota: '',
 		veredicto: '',
 		observaciones: '',
@@ -104,13 +102,13 @@
 			const texto = busqueda.toLowerCase();
 
 			const trabajo = obtenerTituloTrabajo(evaluacion.id_trabajo_grado).toLowerCase();
-			const usuario = obtenerNombreUsuario(evaluacion.id_usuario).toLowerCase();
+			const avance = obtenerTituloAvance(evaluacion.id_avance).toLowerCase();
 			const veredicto = (evaluacion.veredicto || '').toLowerCase();
 
 			return (
 				String(evaluacion.id_evaluacion).includes(texto) ||
 				trabajo.includes(texto) ||
-				usuario.includes(texto) ||
+				avance.includes(texto) ||
 				veredicto.includes(texto)
 			);
 		})
@@ -121,9 +119,19 @@
 		return trabajo ? trabajo.titulo : `Trabajo #${id}`;
 	}
 
-	function obtenerNombreUsuario(id) {
-		const usuario = usuarios.find((item) => item.id_user === Number(id));
-		return usuario ? usuario.nombre : `Usuario #${id}`;
+	function obtenerTituloAvance(id) {
+		const avance = avances.find((item) => Number(item.id_avance) === Number(id));
+		return avance ? avance.titulo : `Avance #${id}`;
+	}
+
+	let avancesDelTrabajo = $derived(
+		formulario.id_trabajo_grado
+			? avances.filter((avance) => Number(avance.id_trabajo_grado) === Number(formulario.id_trabajo_grado))
+			: []
+	);
+
+	function cambiarTrabajoSeleccionado() {
+		formulario.id_avance = '';
 	}
 
 	function obtenerClaseNota(nota) {
@@ -146,7 +154,7 @@
 		formulario = {
 			id_evaluacion: null,
 			id_trabajo_grado: '',
-			id_usuario: '',
+			id_avance: '',
 			nota: '',
 			veredicto: '',
 			observaciones: '',
@@ -163,7 +171,7 @@
 		formulario = {
 			id_evaluacion: evaluacion.id_evaluacion,
 			id_trabajo_grado: evaluacion.id_trabajo_grado,
-			id_usuario: evaluacion.id_usuario,
+			id_avance: evaluacion.id_avance ?? '',
 			nota: evaluacion.nota,
 			veredicto: evaluacion.veredicto,
 			observaciones: evaluacion.observaciones,
@@ -192,7 +200,8 @@
 		console.log('formulario:', $state.snapshot(formulario));
 		if (
 			!formulario.id_trabajo_grado ||
-			!formulario.id_usuario ||
+			!formulario.id_avance ||
+			!formulario.veredicto ||
 			formulario.nota === '' ||
 			formulario.nota == null
 		) {
@@ -209,7 +218,7 @@
 
 		const datos = {
 			id_trabajo_grado: Number(formulario.id_trabajo_grado),
-			id_usuario: Number(formulario.id_usuario),
+			id_avance: Number(formulario.id_avance),
 			nota,
 			veredicto: formulario.veredicto || null,
 			observaciones: formulario.observaciones || null,
@@ -249,8 +258,8 @@
 			cerrarModalEliminar();
 				
 		} catch (error) {
-			console.error(e);
-			alert(e.message || 'No se pudo desactivar la evaluación.');
+			console.error(error);
+			alert(error.message || 'No se pudo desactivar la evaluación.');
 		}
 	}
 
@@ -273,6 +282,42 @@
 
 		cerrarModalEliminar();
 	}
+
+	const escaparHtml = (valor) => String(valor ?? '').replace(/[&<>"']/g, (caracter) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[caracter]);
+
+	let filasTabla = $derived(evaluacionesFiltradas.map((ev) => ({
+		id_evaluacion: ev.id_evaluacion,
+		evaluacionHtml: `<div class="fw-semibold">${escaparHtml(obtenerTituloTrabajo(ev.id_trabajo_grado))}</div><small class="text-muted">${escaparHtml(obtenerTituloAvance(ev.id_avance))}</small>`,
+		notaHtml: `<span class="${obtenerClaseNota(ev.nota)}">${escaparHtml(ev.nota ?? 'Sin nota')} / 5.0</span>`,
+		veredictoHtml: `<span>${escaparHtml(ev.veredicto || 'Pendiente')}</span>`,
+		fechaHtml: `<span class="text-muted small">${escaparHtml(ev.fecha_evaluacion || 'Sin fecha')}</span>`,
+		estadoHtml: `<span class="badge ${ev.estado ? 'text-bg-success' : 'text-bg-secondary'}">${obtenerTextoEstado(ev.estado)}</span>`,
+		accionesHtml: `<div class="d-flex justify-content-end gap-1"><button class="btn btn-sm btn-light" title="Ver detalles" aria-label="Ver evaluación" data-accion="detalle" data-id="${escaparHtml(ev.id_evaluacion)}"><i class="bi bi-eye"></i></button><button class="btn btn-sm btn-light" title="Editar" aria-label="Editar evaluación" data-accion="editar" data-id="${escaparHtml(ev.id_evaluacion)}"><i class="bi bi-pencil"></i></button>${ev.estado ? `<button class="btn btn-sm btn-light text-danger" title="Desactivar" aria-label="Desactivar evaluación" data-accion="desactivar" data-id="${escaparHtml(ev.id_evaluacion)}"><i class="bi bi-slash-circle"></i></button>` : ''}</div>`
+	})));
+
+	const columnasEvaluaciones = [
+		{ data: 'id_evaluacion', title: 'ID' },
+		{ data: 'evaluacionHtml', title: 'Trabajo de grado' },
+		{ data: 'notaHtml', title: 'Nota', orderable: false },
+		{ data: 'veredictoHtml', title: 'Veredicto' },
+		{ data: 'fechaHtml', title: 'Fecha' },
+		{ data: 'estadoHtml', title: 'Estado', orderable: false, searchable: false },
+		{ data: 'accionesHtml', title: 'Acciones', orderable: false, searchable: false }
+	]
+
+	function manejarAccionTabla(accion, id) {
+		const evaluacion = evaluaciones.find((item) => String(item.id_evaluacion) === String(id));
+		if (!evaluacion) return;
+
+		if (accion === 'detalle') verEvaluacion(evaluacion);
+		if (accion === 'editar') abrirEditarEvaluacion(evaluacion);
+		if (accion === 'desactivar') confirmarEliminar(evaluacion);
+	}
+
+
+
 </script>
 
 <div class="container-fluid py-2">
@@ -347,139 +392,16 @@
 		</div>
 	</div>
 
-	<div class="card border-0 shadow-sm">
-		<div class="card-body p-0">
-
-			<div class="table-responsive">
-				<table class="table table-hover align-middle mb-0">
-
-					<thead class="table-light">
-						<tr>
-							<th class="px-3">ID</th>
-							<th>Trabajo de grado</th>
-							<th>Evaluador</th>
-							<th>Nota</th>
-							<th>Veredicto</th>
-							<th>Fecha</th>
-							<th>Estado</th>
-							<th class="text-end px-3">Acciones</th>
-						</tr>
-					</thead>
-
-					<tbody>
-						{#if cargando}
-							<tr>
-								<td colspan="8" class="text-center py-5 text-muted">Cargando evaluaciones...</td>
-							</tr>
-						{:else if error}
-							<tr>
-								<td colspan="8" class="text-center py-5 text-danger">{error}</td>
-							</tr>
-						{:else if evaluacionesFiltradas.length === 0}
-							<tr>
-								<td colspan="8" class="text-center text-muted py-4">
-									No se encontraron evaluaciones con esos filtros.
-								</td>
-							</tr>
-						{:else}
-								{#each evaluacionesFiltradas as evaluacion}
-									<tr>
-
-										<td class="px-3 fw-semibold">
-											#{evaluacion.id_evaluacion}
-										</td>
-
-										<td>
-											<div class="fw-semibold text-dark">
-												{obtenerTituloTrabajo(evaluacion.id_trabajo_grado)}
-											</div>
-
-											<small class="text-muted">
-												ID trabajo: {evaluacion.id_trabajo_grado}
-											</small>
-										</td>
-
-										<td>
-											<div class="fw-semibold">
-												{obtenerNombreUsuario(evaluacion.id_usuario)}
-											</div>
-
-											<small class="text-muted">
-												ID usuario: {evaluacion.id_usuario}
-											</small>
-										</td>
-
-										<td>
-											<span class="fw-bold fs-6 {obtenerClaseNota(evaluacion.nota)}">
-												{evaluacion.nota}
-											</span>
-											<span class="text-muted"> / 5.0</span>
-										</td>
-
-										<td>
-											{#if evaluacion.veredicto}
-												<span class="badge bg-primary-subtle text-primary">
-													{evaluacion.veredicto}
-												</span>
-											{:else}
-												<span class="text-muted">Sin veredicto</span>
-											{/if}
-										</td>
-
-										<td>
-											{evaluacion.fecha_evaluacion || 'Sin fecha'}
-										</td>
-
-										<td>
-											<span class="badge {obtenerClaseEstado(evaluacion.estado)}">
-												{obtenerTextoEstado(evaluacion.estado)}
-											</span>
-										</td>
-
-										<td class="text-end px-3">
-											<div class="d-flex justify-content-end gap-1">
-
-												<button
-													type="button"
-													class="btn btn-sm btn-light"
-													title="Ver"
-													onclick={() => verEvaluacion(evaluacion)}
-												>
-													<i class="bi bi-eye"></i>
-												</button>
-
-												<button
-													type="button"
-													class="btn btn-sm btn-light"
-													title="Editar"
-													onclick={() => abrirEditarEvaluacion(evaluacion)}
-												>
-													<i class="bi bi-pencil"></i>
-												</button>
-
-												<button
-													type="button"
-													class="btn btn-sm btn-light text-danger"
-													title="Eliminar"
-													onclick={() => confirmarEliminar(evaluacion)}
-												>
-													<i class="bi bi-trash"></i>
-												</button>
-
-											</div>
-										</td>
-
-									</tr>
-								{/each}
-							{/if}
-
-					</tbody>
-
-				</table>
-			</div>
-
+	 {#if cargando}
+        <p class="text-center py-5 text-muted mb-0">Cargando evaluaciones...</p>
+    {:else if error}
+        <p class="text-center py-5 text-danger mb-0">{error}</p>
+    {:else}
+		<div class="table-responsive">
+			<DataTableWrapper columnas={columnasEvaluaciones} filas={filasTabla} onAccion={manejarAccionTabla} />
 		</div>
-	</div>
+	{/if}
+		
 
 </div>
 
@@ -523,6 +445,7 @@
 								id="trabajoGrado"
 								class="form-select"
 								bind:value={formulario.id_trabajo_grado}
+				onchange={cambiarTrabajoSeleccionado}
 							>
 								<option value="">Seleccionar trabajo...</option>
 
@@ -535,20 +458,20 @@
 						</div>
 
 						<div class="col-md-6">
-							<label for="usuario" class="form-label fw-semibold">
-								Evaluador *
+							<label for="avance" class="form-label fw-semibold">
+								Avance *
 							</label>
 
 							<select
-								id="usuario"
+								id="avance"
 								class="form-select"
-								bind:value={formulario.id_usuario}
+								bind:value={formulario.id_avance}
 							>
-								<option value="">Seleccionar usuario...</option>
+								<option value="">Seleccionar avance...</option>
 
-								{#each usuarios as usuarioItem}
-									<option value={usuarioItem.id_user}>
-										{usuarioItem.nombre}
+								{#each avancesDelTrabajo as avance (avance.id_avance)}
+									<option value={avance.id_avance}>
+										#{avance.id_avance} · {avance.titulo}{avance.numero_version ? ` (v${avance.numero_version})` : ''}
 									</option>
 								{/each}
 							</select>
@@ -712,17 +635,11 @@
 							</div>
 						</div>
 
-						<div class="col-md-6">
+						<div class="col-12">
 							<div class="detail-box">
-								<small class="text-muted d-block mb-1">
-									Evaluador
-								</small>
-
-								<strong>
-									{obtenerNombreUsuario(
-										evaluacionSeleccionada.id_usuario
-									)}
-								</strong>
+								<small class="text-muted d-block mb-1">Avance evaluado</small>
+								<strong>{obtenerTituloAvance(evaluacionSeleccionada.id_avance)}</strong>
+								<small class="text-muted d-block">ID: {evaluacionSeleccionada.id_avance}</small>
 							</div>
 						</div>
 
