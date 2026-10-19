@@ -1,4 +1,5 @@
 <script>
+  import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
 
 let equipo = $state([
     {
@@ -40,6 +41,23 @@ let equipo = $state([
       );
     })
   );
+
+  const columnasEquipo = [
+    { title: 'Trabajo', data: 'titulo' },
+    { title: 'Estudiantes', data: 'estudiantesTexto' },
+    { title: 'Jurados', data: 'juradosTexto' },
+    { title: 'Estado', data: 'estado' },
+    { title: 'Progreso', data: 'progresoTexto' },
+    { title: 'Acciones', data: 'acciones', orderable: false, searchable: false }
+  ];
+  let filasEquipo = $derived(filtrado.map((t) => ({
+    titulo: t.titulo,
+    estudiantesTexto: t.estudiantes.map((e) => `${e.nombre} ${e.apellido} (${e.carrera})`).join('<br>'),
+    juradosTexto: t.jurados.map((j) => `${j.nombre} ${j.apellido}`).join('<br>'),
+    estado: `<span class="badge text-bg-${colorEstado(t.estado)}">${t.estado}</span>`,
+    progresoTexto: `${t.progreso}%`,
+    acciones: `<a class="btn btn-sm btn-outline-primary" href="/evaluaciones/${t.id_trabajo_grado}">Ver trabajo</a>`
+  })));
 
   let totalEstudiantes = $derived(equipo.reduce((acc, t) => acc + t.estudiantes.length, 0));
 
@@ -88,59 +106,9 @@ let equipo = $state([
     <div class="text-center py-5"><div class="spinner-border"></div></div>
   {:else if error}
     <div class="alert alert-danger">{error}</div>
-  {:else if filtrado.length === 0}
-    <div class="alert alert-light border">No se encontraron resultados.</div>
   {:else}
-    <div class="row g-3">
-      {#each filtrado as trabajo (trabajo.id_trabajo_grado)}
-        <div class="col-lg-6">
-          <a
-            href="/evaluaciones/{trabajo.id_trabajo_grado}"
-            class="card shadow-sm h-100 text-decoration-none text-reset equipo-card"
-            aria-label="Abrir expediente de {trabajo.titulo}"
-          >
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <strong>{trabajo.titulo}</strong>
-              <span class="badge text-bg-{colorEstado(trabajo.estado)}">{trabajo.estado}</span>
-            </div>
-            <div class="card-body">
-              <div class="progress mb-3" style="height: 8px;">
-                <div class="progress-bar" style="width: {trabajo.progreso}%"></div>
-              </div>
-
-              <h6 class="text-muted">Estudiantes</h6>
-              <ul class="list-group list-group-flush mb-3">
-                {#each trabajo.estudiantes as e (e.id_user)}
-                  <li class="list-group-item px-0 d-flex justify-content-between">
-                    <span>{e.nombre} {e.apellido}</span>
-                    <small class="text-muted">{e.carrera}</small>
-                  </li>
-                {/each}
-              </ul>
-
-              <h6 class="text-muted">Jurados</h6>
-              <div class="d-flex flex-wrap gap-2">
-                {#each trabajo.jurados as j (j.id_user)}
-                  <span class="badge text-bg-light border">{j.nombre} {j.apellido}</span>
-                {/each}
-              </div>
-            </div>
-          </a>
-        </div>
-      {/each}
+    <div class="card shadow-sm p-3">
+      <DataTableWrapper columnas={columnasEquipo} filas={filasEquipo} />
     </div>
   {/if}
 </div>
-
-<style>
-  .equipo-card {
-    cursor: pointer;
-    transition: box-shadow 0.15s ease, transform 0.15s ease;
-  }
-
-  .equipo-card:hover,
-  .equipo-card:focus-visible {
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12) !important;
-    transform: translateY(-2px);
-  }
-</style>

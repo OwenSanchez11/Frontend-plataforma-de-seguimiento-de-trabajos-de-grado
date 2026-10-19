@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { sesion } from '$lib/sesion.svelte.js';
   import { editarAvance, getAvances, getTrabajoPorDocente, getUsuarios } from '$lib/api.js';
+  import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
 
   let avances = $state([]);
   const ESTADOS = ['Pendiente', 'En revisión', 'Aprobado', 'Requiere ajustes'];
@@ -76,6 +77,27 @@
       .some((valor) => String(valor ?? '').toLowerCase().includes(texto));
     return coincideTexto && (!filtroEstado || a.estado === filtroEstado);
   }));
+  const columnasEntregas = [
+    { title: 'Avance', data: 'titulo' }, { title: 'Trabajo', data: 'trabajo' },
+    { title: 'Estudiante', data: 'subido_por' }, { title: 'Versión', data: 'versionTexto' },
+    { title: 'Entrega', data: 'entregaTexto' }, { title: 'Fecha límite', data: 'limiteTexto' },
+    { title: 'Estado', data: 'estadoHtml' },
+    { title: 'Acciones', data: 'acciones', orderable: false, searchable: false }
+  ];
+  let filasEntregas = $derived(filtrados.map((a) => ({
+    ...a,
+    versionTexto: `v${a.numero_version ?? '—'}`,
+    entregaTexto: formatearFecha(a.fecha_entrega),
+    limiteTexto: `${formatearFecha(a.fecha_limite)}${esVencido(a) ? ' (Vencido)' : ''}`,
+    estadoHtml: `<span class="badge text-bg-${colorEstado(a.estado)}">${a.estado}</span>`,
+    acciones: `<button class="btn btn-sm btn-outline-primary" data-accion="revisar" data-id="${a.id_avance}">Revisar</button>`
+  })));
+
+  function manejarAccion(accion, id) {
+    if (accion !== 'revisar') return;
+    const avance = avances.find((item) => String(item.id_avance) === String(id));
+    if (avance) abrirModal(avance);
+  }
   let porRevisar = $derived(avances.filter((a) => a.estado === 'En revisión').length);
   let vencidos = $derived(avances.filter(esVencido).length);
   let aprobados = $derived(avances.filter((a) => a.estado === 'Aprobado').length);
@@ -191,47 +213,9 @@
   {#if error && !seleccionado}<div class="alert alert-danger">{error}</div>{/if}
   {#if cargando}
     <div class="text-center py-5"><div class="spinner-border"></div></div>
-  {:else if filtrados.length === 0}
-    <div class="alert alert-light border">No se encontraron avances.</div>
   {:else}
-    <div class="card shadow-sm">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>Avance</th>
-              <th>Trabajo</th>
-              <th>Estudiante</th>
-              <th>Versión</th>
-              <th>Entrega</th>
-              <th>Fecha límite</th>
-              <th>Estado</th>
-              <th class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each filtrados as a (a.id_avance)}
-              <tr>
-                <td class="fw-semibold">{a.titulo}</td>
-                <td>{a.trabajo}</td>
-                <td>{a.subido_por}</td>
-                <td>v{a.numero_version}</td>
-                <td>{formatearFecha(a.fecha_entrega)}</td>
-                <td>
-                  {formatearFecha(a.fecha_limite)}
-                  {#if esVencido(a)}<span class="badge text-bg-danger ms-1">Vencido</span>{/if}
-                </td>
-                <td><span class="badge text-bg-{colorEstado(a.estado)}">{a.estado}</span></td>
-                <td class="text-end">
-                  <button class="btn btn-sm btn-outline-primary" onclick={() => abrirModal(a)}>
-                    Revisar
-                  </button>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+    <div class="card shadow-sm p-3">
+      <DataTableWrapper columnas={columnasEntregas} filas={filasEntregas} onAccion={manejarAccion} />
     </div>
   {/if}
 </div>

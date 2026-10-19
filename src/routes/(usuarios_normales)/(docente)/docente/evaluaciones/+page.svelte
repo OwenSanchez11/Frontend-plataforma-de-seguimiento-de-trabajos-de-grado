@@ -1,6 +1,7 @@
 <script>
 
 	import { onMount } from "svelte";
+	import DataTableWrapper from "$lib/components/DataTableWrapper.svelte";
 	import { getTrabajoPorDocente } from "$lib/api";
 	import { sesion } from "$lib/sesion.svelte.js";
 
@@ -87,6 +88,17 @@
 				String(t.id).toLowerCase().includes(busqueda.toLowerCase())
 		)
 	);
+	const columnasTrabajos = [
+		{ title: 'Código', data: 'id' }, { title: 'Título', data: 'titulo' },
+		{ title: 'Carrera', data: 'carrera' }, { title: 'Rol', data: 'rolProfesor' },
+		{ title: 'Estudiante', data: 'estudiante' }, { title: 'Estado', data: 'estadoTramite' },
+		{ title: 'Último avance', data: 'ultimoAvance' }, { title: 'Entrega', data: 'fechaEntrega' },
+		{ title: 'Acciones', data: 'acciones', orderable: false, searchable: false }
+	];
+	let filasTrabajos = $derived(trabajosFiltrados.map((item) => ({
+		...item,
+		acciones: `<a href="/docente/evaluaciones/${item.id}" class="btn btn-sm btn-outline-primary">Ver detalles</a>`
+	})));
 </script>
 
 <div class="container-fluid p-0">
@@ -266,50 +278,7 @@
 					</div>
 				</div>
 
-				<div class="row g-3">
-					{#each trabajosFiltrados as item}
-						<div class="col-12 col-md-6">
-							<div class="card border rounded-3 p-3 h-100 d-flex flex-column justify-content-between bg-white shadow-2xs">
-								<div>
-									<div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-										<span class="badge bg-light text-dark border font-monospace extra-small">{item.id}</span>
-										<span class="badge bg-primary-subtle text-primary border border-primary-subtle extra-small">{item.rolProfesor}</span>
-									</div>
-
-									<strong class="text-dark small d-block mb-1">{item.titulo}</strong>
-									<span class="extra-small text-muted d-block mb-3">{item.carrera}</span>
-
-									<div class="mb-3">
-										<div class="d-flex align-items-center justify-content-between extra-small mb-1">
-											<span class="text-muted">Avance General</span>
-											<span class="fw-bold text-dark">{item.avancePorcentaje}%</span>
-										</div>
-										<div class="progress" style="height: 6px;">
-											<div class="progress-bar bg-primary" role="progressbar" style="width: {item.avancePorcentaje}%" aria-valuenow={item.avancePorcentaje} aria-valuemin="0" aria-valuemax="100"></div>
-										</div>
-									</div>
-
-									<div class="bg-light p-2.5 rounded-3 border extra-small mb-3">
-										<span class="fw-bold text-dark d-block mb-1">Comité Registrado:</span>
-										<ul class="list-unstyled mb-0 text-muted ps-1">
-											{#each item.integrantes as integrante}
-												<li class="d-flex align-items-center gap-1">
-													<i class="bi bi-person-circle extra-small text-primary"></i> {integrante}
-												</li>
-											{/each}
-										</ul>
-									</div>
-								</div>
-
-								<div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2">
-									<a href="/docente/evaluaciones/{item.id}" class="btn btn-sm btn-outline-primary extra-small px-3 rounded-3 d-flex align-items-center gap-1">
-										<i class="bi bi-eye"></i> Ver Detalles
-									</a>
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
+				<DataTableWrapper columnas={columnasTrabajos} filas={filasTrabajos} />
 			</div>
 		{/if}
 	{/if}

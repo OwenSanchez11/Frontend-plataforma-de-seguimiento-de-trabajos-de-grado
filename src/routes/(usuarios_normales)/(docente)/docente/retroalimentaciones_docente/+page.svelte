@@ -1,4 +1,5 @@
 <script>
+  import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
   // Datos de ejemplo. El backend debería resolver con JOIN el título del avance,
   // el trabajo, el estudiante y el nombre de quien escribió el comentario,
   // además de un booleano `es_mio` (id_usuario == usuario en sesión).
@@ -77,6 +78,26 @@
       return coincideTexto && coincideEstado && coincideAutor;
     })
   );
+
+  const columnasRetroalimentaciones = [
+    { title: 'Avance', data: 'avance' }, { title: 'Trabajo', data: 'trabajo' },
+    { title: 'Estudiante', data: 'estudiante' }, { title: 'Comentario', data: 'comentario' },
+    { title: 'Autor', data: 'autor' }, { title: 'Estado', data: 'estado' },
+    { title: 'Fecha', data: 'fecha' },
+    { title: 'Acciones', data: 'acciones', orderable: false, searchable: false }
+  ];
+  let filasRetroalimentaciones = $derived(filtradas.map((r) => ({
+    ...r,
+    estado: `<span class="badge text-bg-${colorEstado(r.estado)}">${r.estado}</span>`,
+    fecha: formatearFecha(r.created_at),
+    acciones: r.es_mio ? `<button class="btn btn-sm btn-outline-primary" data-accion="editar" data-id="${r.id_retroalimentacion}">Editar</button>` : '—'
+  })));
+
+  function manejarAccion(accion, id) {
+    if (accion !== 'editar') return;
+    const retroalimentacion = retroalimentaciones.find((r) => String(r.id_retroalimentacion) === String(id));
+    if (retroalimentacion) abrirEditar(retroalimentacion);
+  }
 
   let total = $derived(retroalimentaciones.length);
   let pendientes = $derived(retroalimentaciones.filter((r) => r.estado === 'Pendiente').length);
@@ -194,35 +215,9 @@
     <div class="text-center py-5"><div class="spinner-border"></div></div>
   {:else if error}
     <div class="alert alert-danger">{error}</div>
-  {:else if filtradas.length === 0}
-    <div class="alert alert-light border">No se encontraron retroalimentaciones.</div>
   {:else}
-    <div class="d-flex flex-column gap-3">
-      {#each filtradas as r (r.id_retroalimentacion)}
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-              <div>
-                <h6 class="mb-0">{r.avance}</h6>
-                <small class="text-muted">{r.trabajo} · {r.estudiante}</small>
-              </div>
-              <span class="badge text-bg-{colorEstado(r.estado)}">{r.estado}</span>
-            </div>
-
-            <p class="mb-2">{r.comentario}</p>
-
-            <div class="d-flex justify-content-between align-items-center">
-              <small class="text-muted">
-                {r.autor} · {formatearFecha(r.created_at)}
-                {#if fueEditada(r)}<em>(editado {formatearFecha(r.updated_at)})</em>{/if}
-              </small>
-              {#if r.es_mio}
-                <button class="btn btn-sm btn-outline-primary" onclick={() => abrirEditar(r)}>Editar</button>
-              {/if}
-            </div>
-          </div>
-        </div>
-      {/each}
+    <div class="card shadow-sm p-3">
+      <DataTableWrapper columnas={columnasRetroalimentaciones} filas={filasRetroalimentaciones} onAccion={manejarAccion} />
     </div>
   {/if}
 </div>
