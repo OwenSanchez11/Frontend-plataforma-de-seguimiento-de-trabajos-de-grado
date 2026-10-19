@@ -1,17 +1,21 @@
-
 <script>
     import { onMount } from 'svelte';
     import {
         getTrabajos,
         getUsuarios,
-        getEquiposTrabajo,
+        getEquiposPorTrabajo,
         crearEquipoTrabajo,
         editarEquipoTrabajo,
         eliminarEquipoTrabajo
     } from '$lib/api.js';
 
-    const ROL_PROFESOR_PROYECTO = '14';
-    const ROL_ESTUDIANTE_PROYECTO = '15';
+    // El tipo de integrante sale del rol del usuario (usuario.id_rol),
+    // que es lo que devuelve el endpoint en el campo id_rol.
+    const ROLES_PROFESOR = [3, 4];
+    const ROL_ESTUDIANTE = 5;
+
+    const esProfesor = (equipo) => ROLES_PROFESOR.includes(Number(equipo.id_rol));
+    const esEstudiante = (equipo) => Number(equipo.id_rol) === ROL_ESTUDIANTE;
 
     let trabajos = $state([]);
     let usuarios = $state([]);
@@ -26,6 +30,8 @@
     let busquedaEstudiante = $state('');
 
     let cargando = $state(true);
+    let cargandoEquipo = $state(false);
+    let solicitudEquipo = 0;
     let guardando = $state(false);
     let error = $state('');
     let mensaje = $state('');
@@ -39,7 +45,14 @@
         if (Array.isArray(respuesta)) return respuesta;
         if (Array.isArray(respuesta?.data)) return respuesta.data;
         if (Array.isArray(respuesta?.items)) return respuesta.items;
+        if (respuesta && typeof respuesta === 'object' && respuesta.id_equipo != null) {
+            return [respuesta];
+        }
         return [];
+    }
+
+    function claveUnica(id, indice) {
+        return `${id ?? 'sin-id'}-${indice}`;
     }
 
     function nombreCompleto(usuario) {
@@ -65,17 +78,25 @@
         );
     }
 
+    // Número que aparece en observaciones ("Profesor 2" -> 2), para ordenar a los profesores.
+    function numeroDeObservacion(equipo) {
+        return Number(String(equipo.observaciones ?? '').match(/\d+/)?.[0] ?? 0);
+    }
+
+    function ordenarProfesores(a, b) {
+        return numeroDeObservacion(a) - numeroDeObservacion(b) ||
+            Number(a.id_equipo) - Number(b.id_equipo);
+    }
+
     let trabajoActual = $derived(
         obtenerTrabajo(trabajoSeleccionadoId)
     );
 
-    // En tu sistema los usuarios con rol 3 y 4 son los docentes
-    // que ya se utilizaban en el módulo anterior.
     let profesoresDisponibles = $derived(
         usuarios
             .filter(usuario =>
                 estaActivo(usuario) &&
-                [3, 4].includes(Number(usuario.id_rol))
+                ROLES_PROFESOR.includes(Number(usuario.id_rol))
             )
             .sort((a, b) =>
                 nombreCompleto(a).localeCompare(nombreCompleto(b), 'es')
@@ -86,7 +107,7 @@
         usuarios
             .filter(usuario =>
                 estaActivo(usuario) &&
-                Number(usuario.id_rol) === 5
+                Number(usuario.id_rol) === ROL_ESTUDIANTE
             )
             .sort((a, b) =>
                 nombreCompleto(a).localeCompare(nombreCompleto(b), 'es')
@@ -114,44 +135,36 @@
             Number(equipo.id_trabajo_grado) ===
                 Number(trabajoSeleccionadoId) &&
             estaActivo(equipo) &&
-            ['14', '15'].includes(String(equipo.id_rol))
+            (esProfesor(equipo) || esEstudiante(equipo))
         )
     );
 
     let profesoresAsignados = $derived(
         asignacionesTrabajo
-            .filter(equipo =>
-                String(equipo.id_rol) === ROL_PROFESOR_PROYECTO
-            )
-            .sort((a, b) => {
-                const numeroA = Number(
-                    String(a.observaciones ?? '').match(/\d+/)?.[0] ?? 0
-                );
-                const numeroB = Number(
-                    String(b.observaciones ?? '').match(/\d+/)?.[0] ?? 0
-                );
-
-                return numeroA - numeroB ||
-                    Number(a.id_equipo) - Number(b.id_equipo);
-            })
+            .filter(equipo => esProfesor(equipo))
+            .sort(ordenarProfesores)
     );
 
     let estudiantesAsignados = $derived(
-        asignacionesTrabajo.filter(equipo =>
-            String(equipo.id_rol) === ROL_ESTUDIANTE_PROYECTO
-        )
+        asignacionesTrabajo.filter(equipo => esEstudiante(equipo))
     );
 
+    // La persona sale de la lista de usuarios; si aún no está, se usan
+    // el nombre y apellido que ya trae el endpoint del equipo.
     let equipoVisible = $derived([
         ...profesoresAsignados.map((equipo, indice) => ({
             ...equipo,
             tipo: equipo.observaciones || `Profesor ${indice + 1}`,
-            persona: obtenerUsuario(equipo.id_usuario)
+            persona:
+                obtenerUsuario(equipo.id_usuario) ??
+                { nombre: equipo.nombre, apellido: equipo.apellido }
         })),
         ...estudiantesAsignados.map(equipo => ({
             ...equipo,
             tipo: 'Estudiante',
-            persona: obtenerUsuario(equipo.id_usuario)
+            persona:
+                obtenerUsuario(equipo.id_usuario) ??
+                { nombre: equipo.nombre, apellido: equipo.apellido }
         }))
     ]);
 
@@ -166,36 +179,60 @@
         );
 
         profesoresSeleccionados = asignaciones
-            .filter(equipo =>
-                String(equipo.id_rol) === ROL_PROFESOR_PROYECTO
-            )
-            .sort((a, b) => {
-                const numeroA = Number(
-                    String(a.observaciones ?? '').match(/\d+/)?.[0] ?? 0
-                );
-                const numeroB = Number(
-                    String(b.observaciones ?? '').match(/\d+/)?.[0] ?? 0
-                );
-                return numeroA - numeroB ||
-                    Number(a.id_equipo) - Number(b.id_equipo);
-            })
+            .filter(equipo => esProfesor(equipo))
+            .sort(ordenarProfesores)
             .map(equipo => String(equipo.id_usuario));
+        profesoresSeleccionados = [...new Set(profesoresSeleccionados)];
 
         estudiantesSeleccionados = asignaciones
-            .filter(equipo =>
-                String(equipo.id_rol) === ROL_ESTUDIANTE_PROYECTO
-            )
+            .filter(equipo => esEstudiante(equipo))
             .map(equipo => String(equipo.id_usuario));
+        estudiantesSeleccionados = [...new Set(estudiantesSeleccionados)];
 
         busquedaProfesor = '';
         busquedaEstudiante = '';
     }
 
-    function seleccionarTrabajo(valor) {
+    async function cargarEquipoSeleccionado(idTrabajo) {
+        const solicitudActual = ++solicitudEquipo;
+        if (!idTrabajo) {
+            equiposTrabajo = [];
+            sincronizarSeleccion();
+            cargandoEquipo = false;
+            return;
+        }
+
+        cargandoEquipo = true;
+        equiposTrabajo = [];
+        try {
+            const respuesta = await getEquiposPorTrabajo(idTrabajo);
+            if (solicitudActual !== solicitudEquipo) return;
+            equiposTrabajo = obtenerLista(respuesta).map(equipo => ({
+                ...equipo,
+                id_trabajo_grado: equipo.id_trabajo_grado ?? Number(idTrabajo),
+                estado: equipo.estado ?? true
+            }));
+            sincronizarSeleccion();
+        } catch (e) {
+            if (solicitudActual === solicitudEquipo) throw e;
+        } finally {
+            if (solicitudActual === solicitudEquipo) cargandoEquipo = false;
+        }
+    }
+
+    async function seleccionarTrabajo(valor) {
         trabajoSeleccionadoId = valor;
         mensaje = '';
         error = '';
-        sincronizarSeleccion();
+        profesoresSeleccionados = [];
+        estudiantesSeleccionados = [];
+        try {
+            await cargarEquipoSeleccionado(valor);
+        } catch (e) {
+            if (String(trabajoSeleccionadoId) === String(valor)) {
+                error = e.message || 'No fue posible cargar las asignaciones de este trabajo.';
+            }
+        }
     }
 
     function alternarProfesor(idUsuario) {
@@ -241,23 +278,17 @@
     }
 
     async function cargarDatos() {
-        cargando = true;
+        cargando = trabajos.length === 0 && usuarios.length === 0;
         error = '';
 
         try {
-            const [
-                respuestaTrabajos,
-                respuestaUsuarios,
-                respuestaEquipos
-            ] = await Promise.all([
+            const [respuestaTrabajos, respuestaUsuarios] = await Promise.all([
                 getTrabajos(),
-                getUsuarios(),
-                getEquiposTrabajo()
+                getUsuarios()
             ]);
 
             trabajos = obtenerLista(respuestaTrabajos);
             usuarios = obtenerLista(respuestaUsuarios);
-            equiposTrabajo = obtenerLista(respuestaEquipos);
 
             if (
                 !trabajoSeleccionadoId ||
@@ -271,13 +302,21 @@
                 );
             }
 
-            sincronizarSeleccion();
+            // Renderizar la vista en cuanto estén disponibles trabajos y usuarios.
+            // La consulta del equipo tiene su propio estado de carga.
+            cargando = false;
+            try {
+                await cargarEquipoSeleccionado(trabajoSeleccionadoId);
+            } catch (e) {
+                error = e.message || 'No fue posible cargar las asignaciones de este trabajo.';
+            }
 
         } catch (e) {
             console.error('Error al cargar asignaciones:', e);
             error = e.message ||
                 'No fue posible cargar los trabajos y las asignaciones.';
         } finally {
+            cargandoEquipo = false;
             cargando = false;
         }
     }
@@ -320,16 +359,11 @@
                 Number(equipo.id_trabajo_grado) ===
                     Number(trabajoSeleccionadoId) &&
                 estaActivo(equipo) &&
-                ['14', '15'].includes(String(equipo.id_rol))
+                (esProfesor(equipo) || esEstudiante(equipo))
             );
 
-            const profesoresActuales = existentes.filter(equipo =>
-                String(equipo.id_rol) === ROL_PROFESOR_PROYECTO
-            );
-
-            const estudiantesActuales = existentes.filter(equipo =>
-                String(equipo.id_rol) === ROL_ESTUDIANTE_PROYECTO
-            );
+            const profesoresActuales = existentes.filter(equipo => esProfesor(equipo));
+            const estudiantesActuales = existentes.filter(equipo => esEstudiante(equipo));
 
             // Eliminar profesores que se quitaron del formulario.
             for (const equipo of profesoresActuales) {
@@ -364,7 +398,7 @@
                 const payload = {
                     id_trabajo_grado: Number(trabajoSeleccionadoId),
                     id_usuario: Number(idUsuario),
-                    id_rol: ROL_PROFESOR_PROYECTO,
+                    id_rol: Number(obtenerUsuario(idUsuario)?.id_rol),
                     observaciones: `Profesor ${i + 1}`,
                     fecha_asignacion:
                         existente?.fecha_asignacion ?? null,
@@ -400,7 +434,7 @@
                     await crearEquipoTrabajo({
                         id_trabajo_grado: Number(trabajoSeleccionadoId),
                         id_usuario: Number(idUsuario),
-                        id_rol: ROL_ESTUDIANTE_PROYECTO,
+                        id_rol: ROL_ESTUDIANTE,
                         observaciones: 'Estudiante',
                         estado: true
                     });
@@ -473,7 +507,7 @@
                         asignacionEditando.id_trabajo_grado
                     ),
                     id_usuario: Number(asignacionEditando.id_usuario),
-                    id_rol: String(asignacionEditando.id_rol),
+                    id_rol: Number(asignacionEditando.id_rol),
                     observaciones: observacionesEdit.trim() || null,
                     fecha_asignacion:
                         asignacionEditando.fecha_asignacion ?? null,
@@ -498,9 +532,7 @@
     }
 
     function nombreRol(equipo) {
-        return String(equipo.id_rol) === ROL_PROFESOR_PROYECTO
-            ? 'Profesor'
-            : 'Estudiante';
+        return esProfesor(equipo) ? 'Profesor' : 'Estudiante';
     }
 </script>
 
@@ -550,12 +582,16 @@
             >
                 <option value="">Selecciona un trabajo</option>
 
-                {#each trabajos as trabajo (trabajo.id_trabajo_grado)}
+                {#each trabajos as trabajo, indice (claveUnica(trabajo.id_trabajo_grado, indice))}
                     <option value={String(trabajo.id_trabajo_grado)}>
                         {trabajo.titulo}
                     </option>
                 {/each}
             </select>
+
+            {#if cargandoEquipo}
+                <p class="text-muted small mt-2 mb-0">Cargando asignaciones del trabajo...</p>
+            {/if}
 
             {#if trabajoActual}
                 <div class="mt-3 p-3 bg-light rounded">
@@ -603,7 +639,7 @@
                 />
 
                 <div class="lista-personas">
-                    {#each profesoresFiltrados as profesor (profesor.id_user)}
+                    {#each profesoresFiltrados as profesor, indice (claveUnica(profesor.id_user, indice))}
                         <label class="persona-opcion">
                             <input
                                 type="checkbox"
@@ -630,7 +666,7 @@
 
                     {#if profesoresSeleccionados.length > 0}
                         <div class="d-flex flex-wrap gap-2 mt-2">
-                            {#each profesoresSeleccionados as id, i (id)}
+                            {#each profesoresSeleccionados as id, i (claveUnica(id, i))}
                                 <span class="badge bg-primary p-2">
                                     Profesor {i + 1}:
                                     {nombreCompleto(obtenerUsuario(id))}
@@ -680,7 +716,7 @@
                 />
 
                 <div class="lista-personas">
-                    {#each estudiantesFiltrados as estudiante (estudiante.id_user)}
+                    {#each estudiantesFiltrados as estudiante, indice (claveUnica(estudiante.id_user, indice))}
                         <label class="persona-opcion">
                             <input
                                 type="checkbox"
@@ -707,7 +743,7 @@
 
                     {#if estudiantesSeleccionados.length > 0}
                         <div class="d-flex flex-wrap gap-2 mt-2">
-                            {#each estudiantesSeleccionados as id (id)}
+                            {#each estudiantesSeleccionados as id, indice (claveUnica(id, indice))}
                                 <span class="badge bg-success p-2">
                                     {nombreCompleto(obtenerUsuario(id))}
 
@@ -759,7 +795,10 @@
                     Integrantes asignados
                 </h5>
 
-                <div class="table-responsive">
+                {#if cargandoEquipo}
+                    <p class="text-muted mb-0">Cargando integrantes asignados...</p>
+                {:else}
+                    <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
@@ -772,7 +811,7 @@
                         </thead>
 
                         <tbody>
-                            {#each equipoVisible as equipo (equipo.id_equipo)}
+                            {#each equipoVisible as equipo, indice (claveUnica(equipo.id_equipo, indice))}
                                 <tr>
                                     <td>
                                         {equipo.persona
@@ -780,7 +819,7 @@
                                             : `Usuario #${equipo.id_usuario}`}
                                     </td>
                                     <td>
-                                        {#if String(equipo.id_rol) === ROL_PROFESOR_PROYECTO}
+                                        {#if esProfesor(equipo)}
                                             <span class="badge bg-primary">
                                                 Profesor
                                             </span>
@@ -827,7 +866,8 @@
                             {/each}
                         </tbody>
                     </table>
-                </div>
+                    </div>
+                {/if}
             </div>
         </section>
     {/if}
@@ -857,7 +897,7 @@
 
             <p>
                 <strong>Integrante:</strong>
-                {nombreCompleto(obtenerUsuario(asignacionEditando.id_usuario))}
+                {nombreCompleto(asignacionEditando.persona ?? obtenerUsuario(asignacionEditando.id_usuario))}
             </p>
 
             <p>

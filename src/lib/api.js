@@ -41,7 +41,11 @@ export const getTrabajoPorEstudiante = (id_user) => get(`/equipo-trabajo/estudia
 export const getAvancePorTrabajo = (id_trabajo_grado) => get(`/avances/trabajo/${id_trabajo_grado}`);
 export const getRetroalimentacionPorTrabajo = (id_trabajo_grado) => get(`/retroalimentaciones/trabajo/${id_trabajo_grado}`) 
 export const getTrabajoPorDocente = (id_user) => get(`/equipo-trabajo/docente/${id_user}`);
-    // función para pasarle los parametros necesarios para obtener el get, en este caso necesitamos 'id_Facultad' y 'id_carrera' para poder filtrarlos
+export const getEquipoTrabajoPorId = (id_equipo) => get(`/equipo-trabajo/${id_equipo}`)
+export const getEquiposPorTrabajo = (id_trabajo_grado, soloActivos = true) =>
+	get(`/equipo-trabajo/trabajo/${id_trabajo_grado}?solo_activos=${soloActivos}`);   
+
+// función para pasarle los parametros necesarios para obtener el get, en este caso necesitamos 'id_Facultad' y 'id_carrera' para poder filtrarlos
 export const getEvaluaciones = ({ idFacultad = '', idCarrera = ''} = {}) => {
 
     //con URLSearchParams armamos la query para luego mandarsela al endpoint
