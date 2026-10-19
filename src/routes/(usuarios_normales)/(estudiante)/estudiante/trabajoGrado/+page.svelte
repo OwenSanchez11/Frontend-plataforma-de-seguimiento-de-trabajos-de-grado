@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import Banner from '$lib/components/Banner.svelte';
 	import {
 		getTrabajoPorEstudiante,
 		getAvancePorTrabajo,
@@ -85,7 +86,7 @@
 	}
 
 	// Solo se puede cargar si está pendiente, vencido, rechazado o en progreso
-	const puedeCargar = (a) => ['Pendiente', 'Vencido', 'Rechazado', 'En progreso'].includes(textoEstado(a));
+	const puedeCargar = (a) => ['Pendiente', 'Vencido', 'Rechazado', 'En progreso', 'Entregado'].includes(textoEstado(a));
 
 	function abrirModal(a) {
 		avanceElegido = a;
@@ -290,43 +291,24 @@
 		{:else if sinTrabajo}
 			<div class="alert alert-info">Aún no tienes un trabajo de grado asignado.</div>
 		{:else if trabajoGrado}
+			<Banner
+				etiqueta="GESTIÓN DEL PROYECTO · RADICACIÓN {trabajoGrado.radicacion ?? 'PENDIENTE'}"
+				titulo="Mi trabajo de grado"
+				descripcion={trabajoGrado.titulo ?? 'Consulta el estado de tu proyecto y mantente al día con tu proceso de grado.'}
+				stats={[
+					{ etiqueta: 'Estado del trámite', valor: trabajoGrado.estado_tramite ?? 'En curso' },
+					{ etiqueta: 'Modalidad', valor: trabajoGrado.modalidad ?? 'Sin definir' },
+					{ etiqueta: 'Director', valor: director ? nombreCompleto(director) : 'Sin asignar' },
+					{ etiqueta: 'Entregables', valor: String(avances.length) }
+				]}
+			/>
+
 			{#if solicitudOk}
 				<div class="alert alert-success d-flex align-items-center justify-content-between py-2 small" role="alert">
 					<span><i class="bi bi-check-circle me-2"></i>Solicitud enviada. Tu director y el coordinador podrán verla en Retroalimentaciones.</span>
 					<button type="button" class="btn-close" aria-label="Cerrar aviso" onclick={() => (solicitudOk = false)}></button>
 				</div>
 			{/if}
-
-			<!-- Tarjeta principal -->
-			<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4 mb-4">
-				<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3">
-					<span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold py-1.5 px-2.5">
-						<i class="bi bi-circle-fill me-1 extra-small"></i>{trabajoGrado.estado_tramite}
-					</span>
-					<span class="text-muted extra-small">Radicación: <strong>{trabajoGrado.radicacion}</strong></span>
-				</div>
-				<h2 class="h5 h4-md fw-bold text-dark mb-3 text-break">{trabajoGrado.titulo}</h2>
-				<div class="row g-3 pt-3 border-top">
-					<div class="col-6 col-md-3">
-						<span class="extra-small text-muted d-block text-uppercase fw-bold">Modalidad</span>
-						<span class="small fw-semibold text-dark d-block text-truncate">{trabajoGrado.modalidad}</span>
-					</div>
-					<div class="col-6 col-md-3">
-						<span class="extra-small text-muted d-block text-uppercase fw-bold">Director</span>
-						<span class="small fw-semibold text-dark d-block text-truncate">
-							{director ? nombreCompleto(director) : 'Sin asignar'}
-						</span>
-					</div>
-					<div class="col-6 col-md-3">
-						<span class="extra-small text-muted d-block text-uppercase fw-bold">Inicio</span>
-						<span class="small fw-semibold text-dark d-block text-truncate">{formatearFecha(trabajoGrado.fecha_inicio)}</span>
-					</div>
-					<div class="col-6 col-md-3">
-						<span class="extra-small text-muted d-block text-uppercase fw-bold">Cierre Estimado</span>
-						<span class="small fw-semibold text-dark d-block text-truncate">{formatearFecha(trabajoGrado.fecha_estimada_fin ?? trabajoGrado.fecha_fin)}</span>
-					</div>
-				</div>
-			</div>
 
 			<!-- Pestañas -->
 			<ul class="nav nav-pills gap-2 mb-4">
@@ -455,7 +437,7 @@
 												class="btn btn-sm btn-primary px-3 py-1.5 fw-semibold d-flex align-items-center gap-1"
 												onclick={() => abrirModal(a)}
 											>
-												<i class="bi bi-cloud-upload"></i> Cargar Documento
+												<i class="bi bi-cloud-upload"></i> {textoEstado(a) === 'Entregado' ? 'Actualizar Documento' : 'Cargar Documento'}
 											</button>
 										{:else}
 											<span class="extra-small text-muted">Documento en revisión</span>

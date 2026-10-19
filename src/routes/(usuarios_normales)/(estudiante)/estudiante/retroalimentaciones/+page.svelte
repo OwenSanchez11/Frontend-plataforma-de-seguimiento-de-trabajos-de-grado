@@ -1,11 +1,13 @@
 <script>
 	import { onMount } from "svelte";
+	import Banner from '$lib/components/Banner.svelte';
 	import { getTrabajoPorEstudiante , getRetroalimentacionPorTrabajo, crearRetroalimentacion} from "$lib/api";
 	import { sesion } from "$lib/sesion.svelte";
 	import { textoEstado, claseEstado } from '$lib/avances';
 
 	let observaciones = $state([]);
 	let integrantes = $state([]);
+	let trabajoGrado = $state(null);
 	let cargando = $state(true);
 	let error = $state('')
 	let sinTrabajo = $state(false);
@@ -36,6 +38,7 @@
 			}
 			const data = await getTrabajoPorEstudiante(usuario.id_user);
 			const trabajo = data?.trabajo ?? null;
+			trabajoGrado = trabajo;
 			sinTrabajo = !trabajo;
 			integrantes = Array.isArray(data?.equipo) ? data.equipo : []
 
@@ -176,29 +179,20 @@
 		{:else if sinTrabajo}
 			<div class="alert alert-info">Aún no tienes un trabajo de grado asignado.</div>
 		{:else}
+			<Banner
+				etiqueta="SEGUIMIENTO ACADÉMICO · RADICACIÓN {trabajoGrado?.radicacion ?? 'EN PROCESO'}"
+				titulo="Retroalimentación y jurados"
+				descripcion={trabajoGrado?.titulo ?? 'Consulta las observaciones de tus evaluadores y responde para mantener el seguimiento de tus avances.'}
+				stats={[
+					{ etiqueta: 'Observaciones', valor: String(observaciones.length) },
+					{ etiqueta: 'Por atender', valor: String(porAtender.length), color: '#f59e0b' },
+					{ etiqueta: 'Evaluadores asignados', valor: String(evaluadores.length) }
+				]}
+			/>
+
 			{#if respuestaGuardada}
 				<div class="alert alert-success py-2">Tu respuesta se guardó correctamente.</div>
 			{/if}
-			<div class="row g-3 mb-4">
-				<div class="col-6 col-md-4">
-					<div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-						<span class="extra-small text-muted fw-bold text-uppercase">Observaciones</span>
-						<span class="h4 fw-bold text-dark mb-0">{observaciones.length}</span>
-					</div>
-				</div>
-				<div class="col-6 col-md-4">
-					<div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-						<span class="extra-small text-muted fw-bold text-uppercase">Por atender</span>
-						<span class="h4 fw-bold text-warning-emphasis mb-0">{porAtender.length}</span>
-					</div>
-				</div>
-				<div class="col-12 col-md-4">
-					<div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-						<span class="extra-small text-muted fw-bold text-uppercase">Evaluadores</span>
-						<span class="h4 fw-bold text-dark mb-0">{evaluadores.length}</span>
-					</div>
-				</div>
-			</div>
 			
 			<div class="row g-3 mb-4">
 				{#each evaluadores as prof (prof.id_user)}

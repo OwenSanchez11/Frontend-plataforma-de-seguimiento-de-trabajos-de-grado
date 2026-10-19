@@ -243,7 +243,7 @@
 										<p class="text-secondary small mb-1">Tu próxima entrega</p>
 										<h2 class="h4 mb-1">{proxima.titulo}</h2>
 										<p class="text-secondary mb-3">Vence el {formatoFecha(proxima.limite)}</p>
-										<a class="btn btn-primary" href={rutas.avances}>Subir documento</a>
+										<a class="btn btn-primary" href={rutas.estudiante.avances}>Subir documento</a>
 									</div>
 								</div>
 
