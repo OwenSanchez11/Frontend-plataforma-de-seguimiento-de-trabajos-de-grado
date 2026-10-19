@@ -195,9 +195,9 @@
 		>
 			{#snippet acciones()}
 				{#if esDocente}
-					<a class="btn btn-warning fw-semibold" href={rutas.evaluaciones}>Revisar entregas</a>
+					<a class="btn btn-warning fw-semibold" href={rutas.docente.avances}>Revisar entregas</a>
 				{:else}
-					<a class="btn btn-warning fw-semibold" href={rutas.avances}>Subir un avance</a>
+					<a class="btn btn-warning fw-semibold" href={rutas.estudiante.avances}>Subir un avance</a>
 				{/if}
 			{/snippet}
 		</Banner>

@@ -13,7 +13,9 @@
 	let integrantes = $state([]);
 	let avances = $state([]);
 	let cargando = $state(true);
+	let cargandoAvances = $state(true);
 	let error = $state('');
+	let errorAvances = $state('');
 	let sinTrabajo = $state(false);
 
 	// Pestaña activa: 'resumen' o 'avances'
@@ -76,6 +78,10 @@
 
 	function iniciales(p) {
 		return ((p.nombre?.[0] ?? '') + (p.apellido?.[0] ?? '')).toUpperCase();
+	}
+
+	function claveLista(id, indice) {
+		return `${id ?? 'sin-id'}-${indice}`;
 	}
 
 	// Solo se puede cargar si está pendiente, vencido, rechazado o en progreso
@@ -228,9 +234,19 @@
 			integrantes = Array.isArray(data?.equipo) ? data.equipo : [];
 			sinTrabajo = !trabajoGrado;
 
+			cargando = false;
+
 			if (trabajoGrado) {
-				const lista = await getAvancePorTrabajo(trabajoGrado.id_trabajo_grado);
-				avances = Array.isArray(lista) ? lista : [];
+				try {
+					const lista = await getAvancePorTrabajo(trabajoGrado.id_trabajo_grado);
+					avances = Array.isArray(lista) ? lista : [];
+				} catch (e) {
+					errorAvances = e.message || 'No fue posible cargar los avances.';
+				} finally {
+					cargandoAvances = false;
+				}
+			} else {
+				cargandoAvances = false;
 			}
 		} catch (e) {
 			if (e.status === 404) {
@@ -238,6 +254,7 @@
 			} else {
 				error = e.message;
 			}
+			cargandoAvances = false;
 		} finally {
 			cargando = false;
 		}
@@ -371,7 +388,7 @@
 							</tr>
 						</thead>
 						<tbody class="small">
-							{#each integrantes as persona (persona.id_user)}
+							{#each integrantes as persona, indice (claveLista(persona.id_user, indice))}
 								<tr>
 									<td>
 										<div class="d-flex align-items-center gap-2">
@@ -411,7 +428,7 @@
 						{#if pendientes.length === 0}
 							<div class="text-muted small text-center py-4">No tienes entregables pendientes.</div>
 						{:else}
-							{#each pendientes as a (a.id_avance)}
+							{#each pendientes as a, indice (claveLista(a.id_avance, indice))}
 								{@const dias = diasRestantes(a.fecha_limite)}
 								{@const urgente = puedeCargar(a) && dias !== null && dias >= 0 && dias <= 7}
 								<div class="border rounded-3 p-3 mb-3 bg-light-subtle">
@@ -452,6 +469,11 @@
 
 			</div>
 			{:else}
+				{#if cargandoAvances}
+					<div class="text-center py-5 text-muted">Cargando avances y entregas...</div>
+				{:else if errorAvances}
+					<div class="alert alert-warning">{errorAvances}</div>
+				{:else}
 				<!-- Pestaña Avances: registro general -->
 				<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4 mb-4">
 					<h3 class="h6 fw-bold text-dark mb-3 d-flex align-items-center gap-2">
@@ -472,7 +494,7 @@
 								</tr>
 							</thead>
 							<tbody class="small">
-								{#each avancesOrdenados as a (a.id_avance)}
+								{#each avancesOrdenados as a, indice (claveLista(a.id_avance, indice))}
 									<tr>
 										<td><span class="badge bg-light text-dark border font-monospace">#{a.id_avance}</span></td>
 										<td><strong class="text-dark">{a.titulo}</strong></td>
@@ -513,7 +535,7 @@
 								</tr>
 							</thead>
 							<tbody class="small">
-								{#each historial as doc (doc.id_avance)}
+								{#each historial as doc, indice (claveLista(doc.id_avance, indice))}
 									<tr>
 										<td>
 											<div class="d-flex align-items-center gap-2 min-w-0">
@@ -545,6 +567,7 @@
 						</table>
 					</div>
 				</div>
+				{/if}
 			{/if}
 
 			<!-- Ventana (modal) para cargar documento -->
@@ -623,7 +646,7 @@
 									<label class="form-label small fw-semibold" for="s-avance">Avance a modificar *</label>
 									<select id="s-avance" class="form-select form-select-sm" bind:value={solAvance} required>
 										<option value="" disabled>Selecciona un avance</option>
-										{#each avances as a (a.id_avance)}
+										{#each avances as a, indice (claveLista(a.id_avance, indice))}
 											<option value={a.id_avance}>{a.titulo} (v{a.numero_version})</option>
 										{/each}
 									</select>

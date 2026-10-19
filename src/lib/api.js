@@ -10,7 +10,6 @@
         };
     }
 
-    //función para hacer fetch a las rutas de los get en la DB
 
     async function get(ruta) {
         const res = await fetch(`${PUBLIC_API_URL}${ruta}`, {
