@@ -3,6 +3,7 @@
     //importas el onMount y los endpoint que necesitas
     import {onMount} from 'svelte';
     import {getFacultades, getCarreras, crearFacultad, crearCarrera, actualizarFacultad, actualizarCarrera} from '$lib/api';
+    import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
 
     //variables para guardar lo que obtengas del endpoint
     let facultades = $state([]);
@@ -237,6 +238,7 @@
                     codigo_facultad: elementoSeleccionado.codigo_facultad,
                     estado: false
                 });
+                facultades = await getFacultades();
             } else {
                 await actualizarCarrera(elementoSeleccionado.id_carrera, {
                     nombre_carrera: elementoSeleccionado.nombre_carrera,
@@ -270,6 +272,65 @@
         mostrarEliminar = false;
         elementoSeleccionado = null;
     }
+
+    const escaparHtml = (valor) => String(valor ?? '').replace(/[&<>"']/g, (caracter) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[caracter]);
+
+
+    let filasTabla = $derived(pestanaActiva === 'facultades'
+        ? facultadesFiltradas.map((f) => ({
+            id: f.id_facultad,
+            nombreHtml: `<strong>${escaparHtml(f.nombre_facultad)}</strong>`,
+            codigoHtml: `<span class="badge bg-light text-dark">${escaparHtml(f.codigo_facultad || 'Sin código')}</span>`,
+            estadoHtml: `<span class="badge ${f.estado ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}">${f.estado ? 'Activa' : 'Inactiva'}</span>`,
+            accionesHtml: `<div class="d-flex justify-content-center gap-1"><button class="btn btn-sm btn-outline-secondary" title="Ver" aria-label="Ver facultad" data-accion="ver" data-id="${escaparHtml(f.id_facultad)}"><i class="bi bi-eye"></i></button><button class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar facultad" data-accion="editar" data-id="${escaparHtml(f.id_facultad)}"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar facultad" data-accion="eliminar" data-id="${escaparHtml(f.id_facultad)}"><i class="bi bi-trash"></i></button></div>`
+        }))
+        : carrerasFiltradas.map((c) => ({
+            id: c.id_carrera,
+            nombreHtml: `<strong>${escaparHtml(c.nombre_carrera)}</strong>`,
+            codigoHtml: `<span class="badge bg-light text-dark">${escaparHtml(c.codigo_carrera || 'Sin código')}</span>`,
+            facultadHtml: escaparHtml(obtenerNombreFacultad(c.id_facultad)),
+            estadoHtml: `<span class="badge ${c.estado ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}">${c.estado ? 'Activa' : 'Inactiva'}</span>`,
+            accionesHtml: `<div class="d-flex justify-content-center gap-1"><button class="btn btn-sm btn-outline-secondary" title="Ver" aria-label="Ver carrera" data-accion="ver" data-id="${escaparHtml(c.id_carrera)}"><i class="bi bi-eye"></i></button><button class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar carrera" data-accion="editar" data-id="${escaparHtml(c.id_carrera)}"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar carrera" data-accion="eliminar" data-id="${escaparHtml(c.id_carrera)}"><i class="bi bi-trash"></i></button></div>`
+        })));
+
+    const columnasFacultades = [
+        {title: 'ID', data: 'id'},
+        {title: 'Facultad', data: 'nombreHtml'},
+        {title: 'Código', data: 'codigoHtml'},
+        {title: 'Estado', data: 'estadoHtml', orderable: false, searchable: false},
+        {title: 'Acciones', data: 'accionesHtml', orderable: false, searchable: false}
+    ];
+
+    const columnasCarreras = [
+        {title: 'ID', data: 'id'},
+        {title: 'Carrera', data: 'nombreHtml'},
+        {title: 'Código', data: 'codigoHtml'},
+        {title: 'Facultad', data: 'facultadHtml'},
+        {title: 'Estado', data: 'estadoHtml', orderable: false, searchable: false},
+        {title: 'Acciones', data: 'accionesHtml', orderable: false, searchable: false}
+    ];
+
+    let columnasActivas = $derived(pestanaActiva === 'facultades' ? columnasFacultades : columnasCarreras);
+
+    function manejarAccionTabla(accion, id) {
+        if (pestanaActiva === 'facultades') {
+            const facultad = facultades.find((item) => String(item.id_facultad) === String(id));
+            if (!facultad) return;
+            if (accion === 'ver') verFacultad(facultad);
+            if (accion === 'editar') abrirEditarFacultad(facultad);
+            if (accion === 'eliminar') confirmarEliminar(facultad, 'facultad');
+            return;
+        }
+
+        const carrera = carreras.find((item) => String(item.id_carrera) === String(id));
+        if (!carrera) return;
+        if (accion === 'ver') verCarrera(carrera);
+        if (accion === 'editar') abrirEditarCarrera(carrera);
+        if (accion === 'eliminar') confirmarEliminar(carrera, 'carrera');
+    }
+
 </script>
 
 <svelte:head>
@@ -344,211 +405,20 @@
 
             </div>
 
-            {#if pestanaActiva === "facultades"}
-
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Facultad</th>
-                                <th>Código</th>
-                                <th>Estado</th>
-                                <th class="text-center">Acciones</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                        <!-- condicional necesario para que aparezca en la pantalla 'cargando' mientras llega la respuesta de la API -->
-                            {#if cargando}
-                                <tr>
-                                    <td colspan="5" class="text-center py-5 text-muted">Cargando facultades...</td>
-                                </tr>
-                            <!-- condicional por si da error -->
-                            {:else if error}
-                                <tr>
-                                    <td colspan="5" class="text-center py-5 text-danger">{error}</td>
-                                </tr>
-                                <!-- el condicional para que cuando ya tenga la respuesta de la API, renderice todo en el frontend -->
-                            {:else}
-                                {#each facultadesFiltradas as facultad (facultad.id_facultad)}
-                                    <tr>
-                                        <td>{facultad.id_facultad}</td>
-
-                                        <td>
-                                            <strong>{facultad.nombre_facultad}</strong>
-                                        </td>
-
-                                        <td>
-                                            <span class="badge bg-light text-dark">
-                                                {facultad.codigo_facultad || "Sin código"}
-                                            </span>
-                                        </td>
-
-                                        <td>
-                                            {#if facultad.estado}
-                                                <span class="badge bg-success-subtle text-success">
-                                                    Activa
-                                                </span>
-                                            {:else}
-                                                <span class="badge bg-danger-subtle text-danger">
-                                                    Inactiva
-                                                </span>
-                                            {/if}
-                                        </td>
-
-                                        <td class="text-center">
-                                            <div class="btn-group">
-
-                                                <button
-                                                    class="btn btn-sm btn-outline-secondary"
-                                                    title="Ver"
-                                                    onclick={() => verFacultad(facultad)}
-                                                >
-                                                    <i class="bi bi-eye"></i>
-                                                </button>
-
-                                                <button
-                                                    class="btn btn-sm btn-outline-primary"
-                                                    title="Editar"
-                                                    onclick={() => abrirEditarFacultad(facultad)}
-                                                >
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-
-                                                <button
-                                                    class="btn btn-sm btn-outline-danger"
-                                                    title="Eliminar"
-                                                    onclick={() =>
-                                                        confirmarEliminar(
-                                                            facultad,
-                                                            "facultad"
-                                                        )
-                                                    }
-                                                >
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {:else}
-                                    <tr>
-                                        <td colspan="5" class="text-center py-5 text-muted">
-                                            No se encontraron facultades.
-                                        </td>
-                                    </tr>
-                                {/each}
-                            {/if}
-                        </tbody>
-
-                    </table>
-                </div>
-
+            {#if cargando}
+                <p class="text-center py-5 text-muted mb-0">Cargando {pestanaActiva}...</p>
+            {:else if error}
+                <p class="text-center py-5 text-danger mb-0">{error}</p>
             {:else}
-
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Carrera</th>
-                                <th>Código</th>
-                                <th>Facultad</th>
-                                <th>Estado</th>
-                                <th class="text-center">Acciones</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {#if cargando}
-                                <tr>
-                                    <td colspan="5" class="text-center py-5 text-muted"> cargando facultades...</td>
-                                </tr>
-                            {:else if error}
-                                <tr>
-                                    <td colspan="5" class="text-center py-5 text-danger">{error}</td>
-                                </tr>
-                            {:else}
-                                {#each carrerasFiltradas as carrera (carrera.id_carrera)}
-                                    <tr>
-                                        <td>{carrera.id_carrera}</td>
-
-                                        <td>
-                                            <strong>{carrera.nombre_carrera}</strong>
-                                        </td>
-
-                                        <td>
-                                            <span class="badge bg-light text-dark">
-                                                {carrera.codigo_carrera || "Sin código"}
-                                            </span>
-                                        </td>
-
-                                        <td>
-                                            {obtenerNombreFacultad(carrera.id_facultad)}
-                                        </td>
-
-                                        <td>
-                                            {#if carrera.estado}
-                                                <span class="badge bg-success-subtle text-success">
-                                                    Activa
-                                                </span>
-                                            {:else}
-                                                <span class="badge bg-danger-subtle text-danger">
-                                                    Inactiva
-                                                </span>
-                                            {/if}
-                                        </td>
-
-                                        <td class="text-center">
-                                            <div class="btn-group">
-
-                                                <button
-                                                    class="btn btn-sm btn-outline-secondary"
-                                                    title="Ver"
-                                                    onclick={() => verCarrera(carrera)}
-                                                >
-                                                    <i class="bi bi-eye"></i>
-                                                </button>
-
-                                                <button
-                                                    class="btn btn-sm btn-outline-primary"
-                                                    title="Editar"
-                                                    onclick={() => abrirEditarCarrera(carrera)}
-                                                >
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-
-                                                <button
-                                                    class="btn btn-sm btn-outline-danger"
-                                                    title="Eliminar"
-                                                    onclick={() =>
-                                                        confirmarEliminar(
-                                                            carrera,
-                                                            "carrera"
-                                                        )
-                                                    }
-                                                >
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {:else}
-                                    <tr>
-                                        <td colspan="6" class="text-center py-5 text-muted">
-                                            No se encontraron carreras.
-                                        </td>
-                                    </tr>
-                                {/each}
-                            {/if}
-                        </tbody>
-                    </table>
+                    {#key pestanaActiva}
+                        <DataTableWrapper
+                            columnas={columnasActivas}
+                            filas={filasTabla}
+                            onAccion={manejarAccionTabla}
+                        />
+                    {/key}
                 </div>
-
             {/if}
 
         </div>
@@ -871,7 +741,9 @@
                 </h5>
 
                 <p class="text-muted mb-0">
-                    {elementoSeleccionado.nombre_facultad}
+                    {tipoFormulario === "facultad"
+                        ? elementoSeleccionado.nombre_facultad
+                        : elementoSeleccionado.nombre_carrera}
                 </p>
 
                 {#if tipoFormulario === "facultad"}

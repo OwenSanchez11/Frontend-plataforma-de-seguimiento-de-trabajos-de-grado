@@ -1,6 +1,7 @@
 <script>
 
   import {onMount} from 'svelte';
+  import {goto} from '$app/navigation';
   import {getTrabajos, getCarreras, getFacultades, crearTrabajoGrado, actualizarTrabajoGrado} from '$lib/api'
   import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
 
@@ -255,6 +256,39 @@
     }
   }
 
+  const escaparHtml = (valor) => String(valor ?? '').replace(/[&<>"']/g, (caracter) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[caracter]);
+
+
+  let filasTabla = $derived(trabajosFiltrados.map((trabajo) => ({
+    id_trabajo_grado: trabajo.id_trabajo_grado,
+    titulo: trabajo.titulo ?? '',
+    carrera: obtenerNombreCarrera(trabajo.id_carrera),
+    estado_tramite: trabajo.estado_tramite ?? 'Sin estado',
+    trabajoHtml: `<div class="fw-semibold">${escaparHtml(trabajo.titulo)}</div><small class="text-muted">ID: ${escaparHtml(trabajo.id_trabajo_grado)}</small>`,
+    carreraHtml: `<span class="text-muted small">${escaparHtml(obtenerNombreCarrera(trabajo.id_carrera))}</span>`,
+    tramiteHtml: `<span class="text-muted small">${escaparHtml(trabajo.estado_tramite ?? 'Sin estado')}</span>`,
+    estadoHtml: `<span class="badge rounded-pill ${trabajo.estado ? obtenerClaseEstado(trabajo) : 'text-bg-secondary'}">${escaparHtml(trabajo.estado ? trabajo.estado_tramite ?? 'Sin estado' : 'Inactivo')}</span>`,
+    accionesHtml: `<div class="d-flex justify-content-end gap-1"><button class="btn btn-sm btn-light" title="Ver detalles" aria-label="Ver detalles" data-accion="detalle" data-id="${escaparHtml(trabajo.id_trabajo_grado)}"><i class="bi bi-eye"></i></button><button class="btn btn-sm btn-light rounded-circle" title="Editar" aria-label="Editar trabajo" data-accion="editar" data-id="${escaparHtml(trabajo.id_trabajo_grado)}"><i class="bi bi-pencil"></i></button>${trabajo.estado ? `<button class="btn btn-sm btn-light rounded-circle" title="Desactivar" aria-label="Desactivar trabajo" data-accion="desactivar" data-id="${escaparHtml(trabajo.id_trabajo_grado)}"><i class="bi bi-slash-circle"></i></button>` : ''}</div>`
+  })));
+
+  const columnasTrabajos = [
+    { data: 'trabajoHtml', title: 'Trabajo de Grado' },
+    { data: 'carreraHtml', title: 'Carrera' },
+    { data: 'tramiteHtml', title: 'Estado del trámite' },
+    { data: 'estadoHtml', title: 'Estado' },
+    { data: 'accionesHtml', title: 'Acciones', orderable: false, searchable: false }
+  ];
+
+  function manejarAccionTabla(accion, id) {
+    const trabajo = trabajos.find((item) => String(item.id_trabajo_grado) === String(id));
+    if (!trabajo) return;
+
+    if (accion === 'detalle') goto(`/admin/trabajos-grado/${trabajo.id_trabajo_grado}`);
+    if (accion === 'editar') abrirEditarTrabajo(trabajo);
+    if (accion === 'desactivar') confirmarDesactivar(trabajo);
+  }
 
 </script>
 
@@ -338,131 +372,18 @@
 
   <div class="card border-0 shadow-sm rounded-4 p-3">
 
-    <div class="table-responsive">
-
-      <table class="table align-middle mb-0">
-
-        <thead>
-
-          <tr class="text-muted small text-uppercase">
-
-            <th>Trabajo de Grado</th>
-            <th>Carrera</th>
-            <th>Estado del trámite</th>
-            <th>Estado</th>
-            <th class="text-end">Acciones</th>
-
-          </tr>
-
-        </thead>
-
-
-        <tbody>
-
-
-          {#if cargando}
-            <tr>
-              <td colspan="5" class="text-center text-muted py-4">
-                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                Cargando trabajos de grado...
-              </td>
-            </tr>
-
-            {:else if error}
-              <tr>
-                <td colspan="5" class="text-center text-danger py-4">{error}</td>
-              </tr>
-
-            {:else if trabajosFiltrados.length === 0}
-              <tr>
-                <td colspan="5" class="text-center text-muted py-4">
-                  {busqueda ? "No se encontraron trabajos de grado con esa búsqueda." : "Aún no hay trabajos de grado registrados."}
-                </td>
-              </tr>
-
-          {:else}
-            {#each trabajosFiltrados as trabajo (trabajo.id_trabajo_grado)}
-
-              <tr>
-
-                <td>
-
-                  <div class="fw-semibold">
-                    {trabajo.titulo}
-                  </div>
-
-                  <small class="text-muted">
-                    ID: {trabajo.id_trabajo_grado}
-                  </small>
-
-                </td>
-
-
-                <td class="text-muted small">
-                  {obtenerNombreCarrera(trabajo.id_carrera)}
-                </td>
-
-
-                <td class="text-muted small">
-                  {trabajo.estado_tramite ?? "sin estado"}
-                </td>
-
-
-                <td>
-
-                  <span
-                    class="badge rounded-pill
-                    {trabajo.estado
-                      ? obtenerClaseEstado(trabajo)
-                      : 'text-bg-secondary'}"
-                  >
-                    {trabajo.estado
-                      ? trabajo.estado_tramite
-                      : "Inactivo"}
-                  </span>
-
-                </td>
-
-
-                <td class="text-end">
-
-                  <a href={`/admin/trabajos-grado/${trabajo.id_trabajo_grado}`} class="btn btn-sm btn-light" title="Ver detalles">
-                    <i class="bi bi-eye"></i>
-                  </a>
-
-
-                  <button
-                    class="btn btn-sm btn-light rounded-circle me-1"
-                    title="Editar"
-                    onclick={() => abrirEditarTrabajo(trabajo)}
-                  >
-                    <i class="bi bi-pencil"></i>
-                  </button>
-
-
-                  {#if trabajo.estado}
-                    <button
-                      class="btn btn-sm btn-light rounded-circle"
-                      title="Desactivar"
-                      onclick={() => confirmarDesactivar(trabajo)}
-                    >
-                      <i class="bi bi-slash-circle"></i>
-                    </button>
-                  {/if}
-
-                </td>
-
-              </tr>
-
-            {/each }
-          
-          {/if}
-
-        </tbody>
-
-      </table>
-
-    </div>
+    {#if cargando}
+      <div class="text-center text-muted py-4">
+        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+        Cargando trabajos de grado...
+      </div>
+    {:else if error}
+      <div class="text-center text-danger py-4">{error}</div>
+    {:else}
+      <div class="table-responsive">
+        <DataTableWrapper columnas={columnasTrabajos} filas={filasTabla} onAccion={manejarAccionTabla} />
+      </div>
+    {/if}
 
   </div>
 

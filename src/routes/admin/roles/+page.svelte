@@ -1,6 +1,8 @@
 <script>
   import {onMount} from 'svelte';
   import {getRoles, getModulos, getModulosRol, crearRol, editarRol, eliminarRol} from '$lib/api';
+  import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
+
 
   let roles = $state([]);
   let modulos = $state([]);
@@ -192,6 +194,43 @@
       guardando = false;
     }
   }
+
+  const escaparHtml = (valor) => String(valor ?? '').replace(/[&<>"']/g, (caracter) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[caracter]);
+
+
+  let filasTabla = $derived(rolesFiltrados.map((rol) => ({
+    id_rol: rol.id_rol,
+    nombre: rol.rol_nombre ?? '',
+    modulos: rol.modulos.map((modulo) => modulo.nombre_modulo).join(', '),
+    estado: rol.estado,
+    rolHtml: `<div class="fw-semibold">${escaparHtml(rol.rol_nombre)}</div><small class="text-muted">ID: ${escaparHtml(rol.id_rol)}</small>`,
+    modulosHtml: `<button class="btn btn-sm btn-outline-primary rounded-pill" data-accion="modulos" data-id="${escaparHtml(rol.id_rol)}">${rol.modulos.length} módulos <i class="bi bi-chevron-right small"></i></button>`,
+    estadoHtml: `<button class="btn btn-sm ${rol.estado ? 'btn-outline-success' : 'btn-outline-secondary'} rounded-pill" data-accion="estado" data-id="${escaparHtml(rol.id_rol)}" ${actualizandoEstado !== null ? 'disabled' : ''}>${actualizandoEstado === rol.id_rol ? 'Guardando...' : rol.estado ? 'Activo' : 'Inactivo'}</button>`,
+    accionesHtml: `<div class="d-flex justify-content-end gap-1"><button class="btn btn-sm btn-light rounded-circle" title="Editar" aria-label="Editar rol" data-accion="editar" data-id="${escaparHtml(rol.id_rol)}"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-light text-danger rounded-circle" title="Eliminar" aria-label="Eliminar rol" data-accion="eliminar" data-id="${escaparHtml(rol.id_rol)}"><i class="bi bi-trash"></i></button></div>`
+  })));
+
+
+  const columnasTrabajos = [
+    { data: 'rolHtml', title: 'Rol' },
+    { data: 'modulosHtml', title: 'Módulos asignados', orderable: false },
+    { data: 'estadoHtml', title: 'Estado', orderable: false, searchable: false },
+    { data: 'accionesHtml', title: 'Acciones', orderable: false, searchable: false }
+  ];
+
+
+  function manejarAccionTabla(accion, id) {
+    const rolSeleccionadoTabla = rolesConModulos.find((item) => String(item.id_rol) === String(id));
+    if (!rolSeleccionadoTabla) return;
+
+    if (accion === 'modulos') verModulos(rolSeleccionadoTabla);
+    if (accion === 'estado') toggleEstado(rolSeleccionadoTabla.id_rol);
+    if (accion === 'editar') abrirEditar(rolSeleccionadoTabla);
+    if (accion === 'eliminar') abrirEliminar(rolSeleccionadoTabla);
+  }
+
+
 </script>
 
 <div class="container-fluid py-4">
@@ -221,66 +260,15 @@
     {#if errorEstado}
       <div class="alert alert-danger py-2 mb-3" role="alert">{errorEstado}</div>
     {/if}
-    <div class="table-responsive">
-      <table class="table align-middle mb-0">
-        <thead>
-          <tr class="text-muted small text-uppercase">
-            <th>Rol</th>
-            <th>Módulos Asignados</th>
-            <th>Estado</th>
-            <th class="text-end">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#if cargando}
-            <tr>
-              <td colspan="4" class="text-center text-muted py-4">Cargando roles...</td>
-            </tr>
-          {:else if error} 
-            <tr>
-              <td colspan="4" class="text-center text-danger py-4">{error}</td>
-            </tr>
-          {:else if rolesFiltrados.length === 0}
-            <tr>
-              <td colspan="4" class="text-center text-muted py-4">
-                No se encontraron roles con esa búsqueda.
-              </td>
-            </tr>
-          {:else}
-            {#each rolesFiltrados as r (r.id_rol)}
-              <tr>
-                <td class="fw-semibold">{r.rol_nombre}</td>
-                <td>
-                  <button
-                    class="btn btn-sm btn-outline-primary rounded-pill"
-                    onclick={() => verModulos(r)}
-                  >
-                    {r.modulos.length} módulos <i class="bi bi-chevron-right small"></i>
-                  </button>
-                </td>
-                <td>
-                  <button
-                    class="btn btn-sm {r.estado ? 'btn-outline-success' : 'btn-outline-secondary'} rounded-pill"
-                    onclick={() => toggleEstado(r.id_rol)}
-                    disabled={actualizandoEstado !== null}
-                  >
-                    {actualizandoEstado === r.id_rol ? 'Guardando...' : r.estado ? 'Activo' : 'Inactivo'}
-                  </button>
-                </td>
-                <td class="text-end">
-                  <button class="btn btn-sm btn-light rounded-circle" title="Editar" onclick={() => abrirEditar(r)}>
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button class="btn btn-sm btn-light text-danger rounded-circle ms-1" title="Eliminar" onclick={() => abrirEliminar(r)}>
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-            {/each}
-          {/if}
-        </tbody>
-      </table>
-    </div>
+    {#if cargando}
+      <div class="text-center text-muted py-4">Cargando roles...</div>
+    {:else if error}
+      <div class="text-center text-danger py-4">{error}</div>
+    {:else}
+      <div class="table-responsive">
+        <DataTableWrapper columnas={columnasTrabajos} filas={filasTabla} onAccion={manejarAccionTabla} />
+      </div>
+    {/if}
   </div>
 </div>
 
