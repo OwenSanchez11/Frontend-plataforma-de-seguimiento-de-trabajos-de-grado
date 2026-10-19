@@ -28,15 +28,15 @@
 	]
 
 	const menuEstudiante = [
-		{ id: 'trabajo', name: 'Mi Trabajo de Grado', icon: 'bi-journal-text', href: '/trabajoGrado' },
-		{ id: 'retro', name: 'Retroalimentaciones & Jurados', icon: 'bi-chat-left-text', href: '/retroalimentaciones' }
+		{ id: 'trabajo', name: 'Mi Trabajo de Grado', icon: 'bi-journal-text', href: '/estudiante/trabajoGrado' },
+		{ id: 'retro', name: 'Retroalimentaciones & Jurados', icon: 'bi-chat-left-text', href: '/estudiante/retroalimentaciones' }
 	];
 
 	const menuDocente = [
-		{ id: 'equipos', name: 'equipos', icon: 'bi bi-people-fill', href: '/equipo_trabajo' },
-		{ id: 'evaluaciones', name: 'Evaluaciones & trabajos asignados', icon: 'bi-book', href: '/evaluaciones' },
-		{ id: 'avances', name: 'Avances & Entregas', icon: 'bi-bi-chat-left-text', href: '/entregas_docente' },
-		{ id: 'retro-docente', name: 'Retroalimentaciones', icon: 'bi-chat-left-text', href: '/retroalimentaciones_docente' },
+		{ id: 'equipos', name: 'equipos', icon: 'bi bi-people-fill', href: '/docente/equipo_trabajo' },
+		{ id: 'evaluaciones', name: 'Evaluaciones & trabajos asignados', icon: 'bi-book', href: '/docente/evaluaciones' },
+		{ id: 'avances', name: 'Avances & Entregas', icon: 'bi-bi-chat-left-text', href: '/docente/entregas_docente' },
+		{ id: 'retro-docente', name: 'Retroalimentaciones', icon: 'bi-chat-left-text', href: '/docente/retroalimentaciones_docente' },
 	];
 
 	let menu = $derived(

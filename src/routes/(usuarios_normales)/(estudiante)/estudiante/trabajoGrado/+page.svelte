@@ -212,6 +212,10 @@
 	}
 
 	onMount(async () => {
+		if (new URLSearchParams(window.location.search).get('vista') === 'avances') {
+			pestana = 'avances';
+		}
+
 		try {
 			const usuario = sesion.usuario;
 			if (!usuario || usuario.rol !== 'estudiante') {

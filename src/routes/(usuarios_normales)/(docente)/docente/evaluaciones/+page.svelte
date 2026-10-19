@@ -26,6 +26,10 @@
 	}
 
 	onMount(async () => {
+		if (new URLSearchParams(window.location.search).get('vista') === 'trabajos') {
+			pestanaActiva = 'directorio';
+		}
+
 		try {
 			const usuario = sesion.usuario;
 			if (!usuario || usuario.rol !== 'docente') {
@@ -298,7 +302,7 @@
 								</div>
 
 								<div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2">
-									<a href="/evaluaciones/{item.id}" class="btn btn-sm btn-outline-primary extra-small px-3 rounded-3 d-flex align-items-center gap-1">
+									<a href="/docente/evaluaciones/{item.id}" class="btn btn-sm btn-outline-primary extra-small px-3 rounded-3 d-flex align-items-center gap-1">
 										<i class="bi bi-eye"></i> Ver Detalles
 									</a>
 								</div>

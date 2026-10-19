@@ -56,7 +56,7 @@
 </script>
 
 <div class="container-fluid p-0">
-	<a href="/evaluaciones" class="btn btn-sm btn-light border rounded-3 mb-3 extra-small">
+	<a href="/docente/evaluaciones" class="btn btn-sm btn-light border rounded-3 mb-3 extra-small">
 		<i class="bi bi-arrow-left me-1"></i> Volver a Evaluaciones
 	</a>
 
