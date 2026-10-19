@@ -42,7 +42,7 @@
       const [respuestaTrabajos, respuestaAvances, respuestaUsuarios] = await Promise.all([
         getTrabajoPorDocente(docente.id_user), getAvances(), getUsuarios()
       ]);
-      const trabajos = obtenerLista(respuestaTrabajos);
+      const trabajos = obtenerLista(respuestaTrabajos).map((item) => item.trabajo ?? item);
       const usuarios = obtenerLista(respuestaUsuarios);
       const idsTrabajos = new Set(trabajos.map((trabajo) => Number(trabajo.id_trabajo_grado)));
       avances = obtenerLista(respuestaAvances)

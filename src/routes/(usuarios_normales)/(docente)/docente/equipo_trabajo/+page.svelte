@@ -1,43 +1,52 @@
 <script>
+  import { onMount } from 'svelte';
   import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
+  import { getTrabajoPorDocente } from '$lib/api.js';
+  import { sesion } from '$lib/sesion.svelte.js';
 
-let equipo = $state([
-    {
-      id_trabajo_grado: 1,
-      titulo: 'Sistema IoT para calidad del aire',
-      estudiantes: [
-        { id_user: 11, nombre: 'Laura', apellido: 'Pérez', carrera: 'Ingeniería de Sistemas' },
-        { id_user: 12, nombre: 'Carlos', apellido: 'Gómez', carrera: 'Ingeniería de Sistemas' }
-      ],
-      jurados: [
-        { id_user: 31, nombre: 'Marta', apellido: 'Rojas' },
-        { id_user: 32, nombre: 'Andrés', apellido: 'Mejía' }
-      ],
-      estado: 'En curso',
-      progreso: 60
-    },
-    {
-      id_trabajo_grado: 2,
-      titulo: 'Plataforma de gestión de mantenimientos',
-      estudiantes: [
-        { id_user: 13, nombre: 'Sofía', apellido: 'Ramírez', carrera: 'Ingeniería de Sistemas' }
-      ],
-      jurados: [{ id_user: 33, nombre: 'Luis', apellido: 'Torres' }],
-      estado: 'En revisión',
-      progreso: 85
-    }
-  ]);
+let equipo = $state([]);
 
   let busqueda = $state('');
-  let cargando = $state(false);
+  let cargando = $state(true);
   let error = $state('');
+
+  function listaDe(respuesta) {
+    if (Array.isArray(respuesta)) return respuesta;
+    if (Array.isArray(respuesta?.trabajos)) return respuesta.trabajos;
+    if (Array.isArray(respuesta?.data)) return respuesta.data;
+    return [];
+  }
+
+  onMount(async () => {
+    try {
+      const docente = sesion.usuario;
+      if (!docente?.id_user) throw new Error('No se encontró el docente en la sesión.');
+      const respuesta = await getTrabajoPorDocente(docente.id_user);
+      equipo = listaDe(respuesta).map((item) => {
+        const trabajo = item.trabajo ?? item;
+        const equipoTrabajo = Array.isArray(item.equipo) ? item.equipo : Array.isArray(trabajo.equipo) ? trabajo.equipo : [];
+        return {
+          id_trabajo_grado: trabajo.id_trabajo_grado ?? trabajo.id,
+          titulo: trabajo.titulo ?? trabajo.nombre_trabajo ?? 'Trabajo sin título',
+          estudiantes: equipoTrabajo.filter((p) => String(p.rol_proyecto ?? '').toLowerCase().includes('estudiante')),
+          jurados: equipoTrabajo.filter((p) => String(p.rol_proyecto ?? '').toLowerCase().includes('jurado')),
+          estado: trabajo.estado ?? trabajo.estado_trabajo ?? 'Sin estado',
+          progreso: Number(trabajo.progreso ?? trabajo.avance_porcentaje ?? 0)
+        };
+      });
+    } catch (e) {
+      error = e?.message ?? 'No fue posible cargar el equipo de trabajo.';
+    } finally {
+      cargando = false;
+    }
+  });
 
   let filtrado = $derived(
     equipo.filter((t) => {
       const texto = busqueda.toLowerCase();
       return (
-        t.titulo.toLowerCase().includes(texto) ||
-        t.estudiantes.some((e) => `${e.nombre} ${e.apellido}`.toLowerCase().includes(texto))
+        String(t.titulo).toLowerCase().includes(texto) ||
+        t.estudiantes.some((e) => `${e.nombre ?? ''} ${e.apellido ?? ''}`.toLowerCase().includes(texto))
       );
     })
   );

@@ -1,63 +1,18 @@
 <script>
+  import { onMount } from 'svelte';
   import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
-  // Datos de ejemplo. El backend debería resolver con JOIN el título del avance,
-  // el trabajo, el estudiante y el nombre de quien escribió el comentario,
-  // además de un booleano `es_mio` (id_usuario == usuario en sesión).
-  let retroalimentaciones = $state([
-    {
-      id_retroalimentacion: 1,
-      id_avance: 1,
-      avance: 'Marco teórico',
-      trabajo: 'Sistema IoT para calidad del aire',
-      estudiante: 'Laura Pérez',
-      autor: 'Tú',
-      es_mio: true,
-      comentario: 'Amplía los antecedentes internacionales y revisa el formato de las citas.',
-      estado: 'Pendiente',
-      created_at: '2026-09-21T10:30:00',
-      updated_at: '2026-09-21T10:30:00'
-    },
-    {
-      id_retroalimentacion: 2,
-      id_avance: 1,
-      avance: 'Marco teórico',
-      trabajo: 'Sistema IoT para calidad del aire',
-      estudiante: 'Laura Pérez',
-      autor: 'Marta Rojas (Jurado)',
-      es_mio: false,
-      comentario: 'Falta justificar la elección de los sensores.',
-      estado: 'Atendida',
-      created_at: '2026-09-23T15:00:00',
-      updated_at: '2026-09-25T09:10:00'
-    },
-    {
-      id_retroalimentacion: 3,
-      id_avance: 3,
-      avance: 'Análisis de requisitos',
-      trabajo: 'Plataforma de gestión de mantenimientos',
-      estudiante: 'Sofía Ramírez',
-      autor: 'Tú',
-      es_mio: true,
-      comentario: 'Excelente levantamiento de requisitos. Puedes pasar a la fase de diseño.',
-      estado: 'Atendida',
-      created_at: '2026-09-06T08:00:00',
-      updated_at: '2026-09-08T11:45:00'
-    }
-  ]);
-
-  // Avances sobre los que el docente puede comentar (solo para el selector del modal).
-  const avancesDisponibles = [
-    { id_avance: 1, titulo: 'Marco teórico', trabajo: 'Sistema IoT para calidad del aire', estudiante: 'Laura Pérez' },
-    { id_avance: 2, titulo: 'Diseño de la metodología', trabajo: 'Sistema IoT para calidad del aire', estudiante: 'Carlos Gómez' },
-    { id_avance: 3, titulo: 'Análisis de requisitos', trabajo: 'Plataforma de gestión de mantenimientos', estudiante: 'Sofía Ramírez' }
-  ];
+  import { crearRetroalimentacion, editarRetroalimentacion, getAvances, getRetroalimentacionPorTrabajo, getTrabajoPorDocente, getUsuarios } from '$lib/api.js';
+  import { sesion } from '$lib/sesion.svelte.js';
+  let retroalimentaciones = $state([]);
+    let avancesDisponibles = $state([]);
 
   const ESTADOS = ['Pendiente', 'Atendida'];
 
   let busqueda = $state('');
   let filtroEstado = $state('');
   let soloMias = $state(false);
-  let cargando = $state(false);
+  let cargando = $state(true);
+  let guardando = $state(false);
   let error = $state('');
 
   // Modal crear/editar
@@ -66,13 +21,74 @@
   let formAvance = $state('');
   let formComentario = $state('');
 
+  function obtenerLista(respuesta) {
+    if (Array.isArray(respuesta)) return respuesta;
+    if (Array.isArray(respuesta?.data)) return respuesta.data;
+    if (Array.isArray(respuesta?.items)) return respuesta.items;
+    if (Array.isArray(respuesta?.trabajos)) return respuesta.trabajos;
+    return [];
+  }
+
+  function nombreUsuario(usuario) {
+    return `${usuario?.nombre ?? ''} ${usuario?.apellido ?? ''}`.trim() || usuario?.username || 'Usuario';
+  }
+
+  onMount(async () => {
+    try {
+      const docente = sesion.usuario;
+      if (!docente?.id_user) throw new Error('No se encontró el docente en la sesión.');
+      const [respuestaTrabajos, respuestaAvances, respuestaUsuarios] = await Promise.all([
+        getTrabajoPorDocente(docente.id_user), getAvances(), getUsuarios()
+      ]);
+      const trabajos = obtenerLista(respuestaTrabajos).map((item) => item.trabajo ?? item);
+      const avances = obtenerLista(respuestaAvances).filter((avance) =>
+        trabajos.some((trabajo) => String(trabajo.id_trabajo_grado) === String(avance.id_trabajo_grado))
+      );
+      const usuarios = obtenerLista(respuestaUsuarios);
+      avancesDisponibles = avances.map((avance) => {
+        const trabajo = trabajos.find((item) => String(item.id_trabajo_grado) === String(avance.id_trabajo_grado));
+        const estudiante = usuarios.find((item) => String(item.id_user) === String(avance.subido_por));
+        return {
+          id_avance: avance.id_avance,
+          titulo: avance.titulo ?? `Avance ${avance.id_avance}`,
+          trabajo: trabajo?.titulo ?? 'Trabajo',
+          estudiante: nombreUsuario(estudiante)
+        };
+      });
+      const listas = await Promise.all(trabajos.map((trabajo) => getRetroalimentacionPorTrabajo(trabajo.id_trabajo_grado)));
+      retroalimentaciones = listas.flatMap((lista) => obtenerLista(lista)).map((item) => {
+        const avance = avances.find((registro) => String(registro.id_avance) === String(item.id_avance));
+        const trabajo = trabajos.find((registro) => String(registro.id_trabajo_grado) === String(avance?.id_trabajo_grado));
+        const autorId = item.id_user ?? item.id_usuario ?? item.usuario?.id_user;
+        const autor = usuarios.find((usuario) => String(usuario.id_user) === String(autorId));
+        const esMia = String(autorId) === String(docente.id_user);
+        return {
+          ...item,
+          avance: item.avance?.titulo ?? item.titulo_avance ?? avance?.titulo ?? `Avance ${item.id_avance ?? ''}`,
+          trabajo: item.trabajo?.titulo ?? item.titulo_trabajo ?? trabajo?.titulo ?? 'Trabajo',
+          estudiante: item.estudiante?.nombre ? nombreUsuario(item.estudiante) : nombreUsuario(usuarios.find((u) => String(u.id_user) === String(avance?.subido_por))),
+          autor: esMia ? 'Tú' : nombreUsuario(autor),
+          es_mio: esMia,
+          comentario: String(item.comentario ?? ''),
+          estado: item.estado ?? item.dictamen ?? 'Pendiente',
+          created_at: item.created_at ?? item.fecha_creacion,
+          updated_at: item.updated_at ?? item.created_at ?? item.fecha_creacion
+        };
+      });
+    } catch (e) {
+      error = e?.message ?? 'No fue posible cargar las retroalimentaciones.';
+    } finally {
+      cargando = false;
+    }
+  });
+
   let filtradas = $derived(
     retroalimentaciones.filter((r) => {
       const t = busqueda.toLowerCase();
       const coincideTexto =
-        r.comentario.toLowerCase().includes(t) ||
-        r.avance.toLowerCase().includes(t) ||
-        r.estudiante.toLowerCase().includes(t);
+        String(r.comentario ?? '').toLowerCase().includes(t) ||
+        String(r.avance ?? '').toLowerCase().includes(t) ||
+        String(r.estudiante ?? '').toLowerCase().includes(t);
       const coincideEstado = !filtroEstado || r.estado === filtroEstado;
       const coincideAutor = !soloMias || r.es_mio;
       return coincideTexto && coincideEstado && coincideAutor;
@@ -133,31 +149,49 @@
     modalAbierto = false;
   }
 
-  // Por ahora solo modifica los datos locales; luego aquí van el POST y el PUT.
-  function guardar() {
+  async function guardar() {
     if (!formValido) return;
-    const ahora = new Date().toISOString();
-
-    if (editando) {
-      editando.comentario = formComentario.trim();
-      editando.updated_at = ahora;
-    } else {
-      const av = avancesDisponibles.find((a) => String(a.id_avance) === formAvance);
-      retroalimentaciones.unshift({
-        id_retroalimentacion: Date.now(), // temporal, lo asigna la BD
-        id_avance: av.id_avance,
-        avance: av.titulo,
-        trabajo: av.trabajo,
-        estudiante: av.estudiante,
-        autor: 'Tú',
-        es_mio: true,
-        comentario: formComentario.trim(),
-        estado: 'Pendiente',
-        created_at: ahora,
-        updated_at: ahora
+    guardando = true;
+    error = '';
+    try {
+      const datos = editando
+        ? { comentario: formComentario.trim() }
+        : {
+            id_avance: Number(formAvance),
+            id_usuario: Number(sesion.usuario.id_user),
+            comentario: formComentario.trim()
+          };
+      if (editando) {
+        await editarRetroalimentacion(editando.id_retroalimentacion, datos);
+      } else {
+        await crearRetroalimentacion(datos);
+      }
+      const trabajos = obtenerLista(await getTrabajoPorDocente(sesion.usuario.id_user)).map((item) => item.trabajo ?? item);
+      const respuestas = await Promise.all(trabajos.map((trabajo) => getRetroalimentacionPorTrabajo(trabajo.id_trabajo_grado)));
+      // Recargar desde la fuente del backend para conservar los campos calculados y el ID real.
+      const docenteId = String(sesion.usuario.id_user);
+      retroalimentaciones = respuestas.flatMap((lista) => obtenerLista(lista)).map((item) => {
+        const avance = avancesDisponibles.find((a) => String(a.id_avance) === String(item.id_avance));
+        const autorId = item.id_user ?? item.id_usuario ?? item.usuario?.id_user;
+        return {
+          ...item,
+          avance: item.avance?.titulo ?? item.titulo_avance ?? avance?.titulo ?? `Avance ${item.id_avance ?? ''}`,
+          trabajo: item.trabajo?.titulo ?? item.titulo_trabajo ?? avance?.trabajo ?? 'Trabajo',
+          estudiante: item.estudiante?.nombre ? nombreUsuario(item.estudiante) : avance?.estudiante ?? 'Estudiante',
+          es_mio: String(autorId) === docenteId,
+          autor: String(autorId) === docenteId ? 'Tú' : nombreUsuario(item.usuario),
+          comentario: String(item.comentario ?? ''),
+          estado: item.estado ?? item.dictamen ?? 'Pendiente',
+          created_at: item.created_at ?? item.fecha_creacion,
+          updated_at: item.updated_at ?? item.created_at ?? item.fecha_creacion
+        };
       });
+      cerrarModal();
+    } catch (e) {
+      error = e?.message ?? 'No fue posible guardar la retroalimentación.';
+    } finally {
+      guardando = false;
     }
-    cerrarModal();
   }
 </script>
 
@@ -233,6 +267,7 @@
         </div>
 
         <div class="modal-body">
+          {#if error}<div class="alert alert-danger" role="alert">{error}</div>{/if}
           <div class="mb-3">
             <label class="form-label" for="avance">Avance</label>
             <select id="avance" class="form-select" bind:value={formAvance} disabled={!!editando}>
@@ -250,8 +285,8 @@
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-light" onclick={cerrarModal}>Cancelar</button>
-          <button class="btn btn-primary" onclick={guardar} disabled={!formValido}>Guardar</button>
+          <button class="btn btn-light" onclick={cerrarModal} disabled={guardando}>Cancelar</button>
+          <button class="btn btn-primary" onclick={guardar} disabled={!formValido || guardando}>{guardando ? 'Guardando...' : 'Guardar'}</button>
         </div>
       </div>
     </div>

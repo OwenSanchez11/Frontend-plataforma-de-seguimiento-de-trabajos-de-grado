@@ -107,6 +107,7 @@ export const getAvances = ({ idTrabajo = '' } = {}) => {
     export const crearAvance = (datos) => request('/avances/', 'POST', datos);
     export const crearEquipoTrabajo = (datos) => request('/equipo-trabajo/', 'POST', datos);
     export const crearRetroalimentacion = (datos) => request('/retroalimentaciones/', 'POST', datos)
+    export const editarRetroalimentacion = (id, datos) => request(`/retroalimentaciones/${id}`, 'PUT', datos);
     //funciones para el put aquí
     export const actualizarTrabajoGrado = (id, datos) => request(`/trabajo_grado/${id}`, 'PUT', datos);
     export const editarRol = (id, datos) => request(`/rol/${id}` , 'PUT', datos )

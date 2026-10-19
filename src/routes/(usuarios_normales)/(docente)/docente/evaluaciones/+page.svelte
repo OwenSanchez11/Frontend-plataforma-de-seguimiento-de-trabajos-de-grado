@@ -2,7 +2,7 @@
 
 	import { onMount } from "svelte";
 	import DataTableWrapper from "$lib/components/DataTableWrapper.svelte";
-	import { getTrabajoPorDocente } from "$lib/api";
+	import { crearEvaluacion, editarEvaluacion, getAvances, getEvaluaciones, getTrabajoPorDocente } from "$lib/api";
 	import { sesion } from "$lib/sesion.svelte.js";
 
 	let pestanaActiva = $state('calificar');
@@ -16,6 +16,9 @@
 	let veredicto = $state('Aprobado');
 	let observaciones = $state('');
 	let evaluacionEnviada = $state(false);
+	let guardandoEvaluacion = $state(false);
+	let errorEvaluacion = $state('');
+	let avanceSeleccionado = $state('');
 
 	function formatearFecha(f) {
 		if (!f) return '—';
@@ -38,35 +41,35 @@
 				return;
 			}
 
-			const respuesta = await getTrabajoPorDocente(usuario.id_user);
-			const datos = Array.isArray(respuesta)
-				? respuesta
-				: Array.isArray(respuesta?.data)
-					? respuesta.data
-					: Array.isArray(respuesta?.items)
-						? respuesta.items
-						: Array.isArray(respuesta?.trabajos)
-							? respuesta.trabajos
-						: [];
-			
-			trabajosAsignados = datos.map((t) => {
-				const equipo = Array.isArray(t.equipo) ? t.equipo : [];
+			const [respuesta, respuestaAvances, respuestaEvaluaciones] = await Promise.all([
+				getTrabajoPorDocente(usuario.id_user), getAvances(), getEvaluaciones()
+			]);
+			const datos = obtenerLista(respuesta);
+			const avances = obtenerLista(respuestaAvances);
+			const evaluaciones = obtenerLista(respuestaEvaluaciones);
+			trabajosAsignados = datos.map((item) => {
+				const t = item.trabajo ?? item;
+				const equipo = Array.isArray(item.equipo) ? item.equipo : Array.isArray(t.equipo) ? t.equipo : [];
 				const est = equipo.find((e) => String(e.rol_proyecto ?? '').toLowerCase().includes('estudiante'));
 				const id = t.id_trabajo_grado ?? t.id;
+				const avancesTrabajo = avances.filter((a) => Number(a.id_trabajo_grado) === Number(id) && a.estado !== false);
 				return {
 					id,
 					titulo: String(t.titulo ?? t.nombre_trabajo ?? `Trabajo ${id ?? ''}`).trim(),
 					estudiante: est ? `${est.nombre} ${est.apellido}` : 'Sin estudiante asignado',
-					carrera: t.carrera ?? '—',
-					rolProfesor: t.rol_docente ?? '—',
-					estadoTramite: t.evaluado ? 'Evaluado' : 'Pendiente de Calificación',
-					ultimoAvance: t.ultimo_avance ?? 'Sin avances',
-					fechaEntrega: formatearFecha(t.fecha_ultimo_avance),
+					carrera: t.carrera?.nombre_carrera ?? t.carrera ?? t.nombre_carrera ?? '—',
+					rolProfesor: item.rol_docente ?? t.rol_docente ?? '—',
+					avances: avancesTrabajo,
+					evaluaciones: evaluaciones.filter((ev) => Number(ev.id_trabajo_grado) === Number(id)),
+					estadoTramite: evaluaciones.some((ev) => Number(ev.id_trabajo_grado) === Number(id)) ? 'Evaluado' : 'Pendiente de Calificación',
+					ultimoAvance: avancesTrabajo.at(-1)?.titulo ?? 'Sin avances',
+					fechaEntrega: formatearFecha(avancesTrabajo.at(-1)?.fecha_entrega),
 					integrantes: equipo.map((e) => `${e.nombre} ${e.apellido} (${e.rol_proyecto ?? 'Sin rol'})`)
 				};
 			});
 
 			trabajoSeleccionado = trabajosAsignados[0] ?? null;
+			avanceSeleccionado = String(trabajoSeleccionado?.avances?.at(-1)?.id_avance ?? '');
 
 		} catch (e) {
 			error = e.message || 'No fue posible cargar los trabajos asignados.';
@@ -75,9 +78,52 @@
 		}
 	});
 
-	function guardarEvaluacion(e) {
+	function obtenerLista(respuesta) {
+		if (Array.isArray(respuesta)) return respuesta;
+		if (Array.isArray(respuesta?.data)) return respuesta.data;
+		if (Array.isArray(respuesta?.items)) return respuesta.items;
+		if (Array.isArray(respuesta?.trabajos)) return respuesta.trabajos;
+		if (Array.isArray(respuesta?.evaluaciones)) return respuesta.evaluaciones;
+		if (Array.isArray(respuesta?.avances)) return respuesta.avances;
+		return [];
+	}
+
+	async function guardarEvaluacion(e) {
 		e.preventDefault();
-		evaluacionEnviada = true;
+		if (!trabajoSeleccionado || !avanceSeleccionado) {
+			errorEvaluacion = 'Selecciona un avance antes de registrar la evaluación.';
+			return;
+		}
+		guardandoEvaluacion = true;
+		errorEvaluacion = '';
+		const datos = {
+			id_trabajo_grado: Number(trabajoSeleccionado.id),
+			id_avance: Number(avanceSeleccionado),
+			nota: Number(notaFinal),
+			veredicto,
+			observaciones: observaciones.trim() || null,
+			fecha_evaluacion: new Date().toISOString().slice(0, 10),
+			estado: true
+		};
+		try {
+			const evaluacionExistente = trabajoSeleccionado.evaluaciones.find((ev) => Number(ev.id_avance) === datos.id_avance);
+			if (evaluacionExistente) await editarEvaluacion(evaluacionExistente.id_evaluacion, datos);
+			else await crearEvaluacion(datos);
+			try {
+				const evaluacionesActualizadas = obtenerLista(await getEvaluaciones());
+				trabajoSeleccionado.evaluaciones = evaluacionesActualizadas.filter((ev) => Number(ev.id_trabajo_grado) === datos.id_trabajo_grado);
+			} catch {
+				trabajoSeleccionado.evaluaciones = evaluacionExistente
+					? trabajoSeleccionado.evaluaciones.map((ev) => Number(ev.id_avance) === datos.id_avance ? { ...ev, ...datos } : ev)
+					: [...trabajoSeleccionado.evaluaciones, datos];
+			}
+			trabajoSeleccionado.estadoTramite = 'Evaluado';
+			evaluacionEnviada = true;
+		} catch (e) {
+			errorEvaluacion = e?.message ?? 'No fue posible guardar la evaluación.';
+		} finally {
+			guardandoEvaluacion = false;
+		}
 	}
 
 	let trabajosFiltrados = $derived(
@@ -158,6 +204,10 @@
 								class="card border p-3 rounded-3 text-start transition-all btn-hover {trabajoSeleccionado?.id === trabajo.id ? 'border-primary bg-primary-subtle shadow-2xs' : 'bg-white'}"
 									onclick={() => {
 										trabajoSeleccionado = trabajo;
+									avanceSeleccionado = String(trabajo.avances.at(-1)?.id_avance ?? '');
+									notaFinal = '';
+									observaciones = '';
+										errorEvaluacion = '';
 										evaluacionEnviada = false;
 									}}
 								>
@@ -207,6 +257,17 @@
 							</div>
 						{:else}
 							<form onsubmit={guardarEvaluacion} class="d-flex flex-column gap-3">
+								{#if errorEvaluacion}<div class="alert alert-danger small mb-0">{errorEvaluacion}</div>{/if}
+								<div>
+									<label for="avanceEvaluacion" class="form-label extra-small fw-bold text-uppercase text-muted">Avance a evaluar</label>
+									<select id="avanceEvaluacion" bind:value={avanceSeleccionado} class="form-select form-select-sm rounded-3" required disabled={trabajoSeleccionado.avances.length === 0}>
+										<option value="">Selecciona un avance...</option>
+										{#each trabajoSeleccionado.avances as avance (avance.id_avance)}
+											<option value={String(avance.id_avance)}>{avance.titulo} {avance.numero_version ? `(v${avance.numero_version})` : ''}</option>
+										{/each}
+									</select>
+									{#if trabajoSeleccionado.avances.length === 0}<small class="text-danger">Este trabajo todavía no tiene avances para evaluar.</small>{/if}
+								</div>
 								<div class="row g-3">
 									<div class="col-12 col-md-6">
 										<label for="inputNota" class="form-label extra-small fw-bold text-uppercase text-muted">Nota Cuantitativa (0.0 - 5.0)</label>
@@ -246,7 +307,7 @@
 
 								<div class="d-flex justify-content-end gap-2 pt-2 border-top">
 									<button type="button" class="btn btn-sm btn-light border rounded-3 px-3">Cancelar</button>
-									<button type="submit" class="btn btn-sm btn-primary rounded-3 px-4 fw-semibold shadow-sm">
+									<button type="submit" class="btn btn-sm btn-primary rounded-3 px-4 fw-semibold shadow-sm" disabled={guardandoEvaluacion || !avanceSeleccionado}>
 										<i class="bi bi-send-check me-1"></i> Registrar Evaluación Final
 									</button>
 								</div>
