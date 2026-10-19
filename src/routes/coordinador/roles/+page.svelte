@@ -291,15 +291,13 @@
             usuarios = obtenerLista(respuestaUsuarios);
 
             if (
-                !trabajoSeleccionadoId ||
+                trabajoSeleccionadoId &&
                 !trabajos.some(t =>
                     String(t.id_trabajo_grado) ===
                     String(trabajoSeleccionadoId)
                 )
             ) {
-                trabajoSeleccionadoId = String(
-                    trabajos[0]?.id_trabajo_grado ?? ''
-                );
+                trabajoSeleccionadoId = '';
             }
 
             // Renderizar la vista en cuanto estén disponibles trabajos y usuarios.

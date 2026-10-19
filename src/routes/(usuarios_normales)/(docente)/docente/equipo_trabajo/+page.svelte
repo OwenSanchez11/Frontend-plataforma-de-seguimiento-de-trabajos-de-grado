@@ -1,4 +1,5 @@
 <script>
+  import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
   import { getTrabajoPorDocente } from '$lib/api.js';
@@ -59,13 +60,19 @@ let equipo = $state([]);
     { title: 'Progreso', data: 'progresoTexto' },
     { title: 'Acciones', data: 'acciones', orderable: false, searchable: false }
   ];
+
+  function manejarAccion(accion, idTrabajo) {
+    if (accion !== 'ver-trabajo' || !idTrabajo) return;
+    goto(`/evaluaciones/${encodeURIComponent(idTrabajo)}`);
+  }
+
   let filasEquipo = $derived(filtrado.map((t) => ({
     titulo: t.titulo,
     estudiantesTexto: t.estudiantes.map((e) => `${e.nombre} ${e.apellido} (${e.carrera})`).join('<br>'),
     juradosTexto: t.jurados.map((j) => `${j.nombre} ${j.apellido}`).join('<br>'),
     estado: `<span class="badge text-bg-${colorEstado(t.estado)}">${t.estado}</span>`,
     progresoTexto: `${t.progreso}%`,
-    acciones: `<a class="btn btn-sm btn-outline-primary" href="/evaluaciones/${t.id_trabajo_grado}">Ver trabajo</a>`
+    acciones: `<button type="button" class="btn btn-sm btn-outline-primary" data-accion="ver-trabajo" data-id="${t.id_trabajo_grado}">Ver trabajo</button>`
   })));
 
   let totalEstudiantes = $derived(equipo.reduce((acc, t) => acc + t.estudiantes.length, 0));
@@ -117,7 +124,7 @@ let equipo = $state([]);
     <div class="alert alert-danger">{error}</div>
   {:else}
     <div class="card shadow-sm p-3">
-      <DataTableWrapper columnas={columnasEquipo} filas={filasEquipo} />
+      <DataTableWrapper columnas={columnasEquipo} filas={filasEquipo} onAccion={manejarAccion} />
     </div>
   {/if}
 </div>
