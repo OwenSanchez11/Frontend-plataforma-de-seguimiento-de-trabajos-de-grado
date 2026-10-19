@@ -465,42 +465,6 @@
 </section>
 
 <!-- ==========================================
-     RESUMEN
-========================================== -->
-
-<section class="card mb-4 shadow-sm">
-    <div class="card-body">
-        <h6 class="fw-bold">
-            Resumen: trabajos pendientes de aprobación (su carrera)
-        </h6>
-
-        {#if cargando}
-            <p class="text-muted mb-0">
-                Cargando resumen...
-            </p>
-        {:else}
-            <div class="row g-3 mt-1">
-                {#each resumen as item}
-                    <div class="col-md-4">
-                        <div class="border rounded p-3 text-center h-100">
-                            <i class="bi {item.icono} fs-4 text-primary"></i>
-
-                            <div class="fs-4 fw-bold mt-2">
-                                {item.valor}
-                            </div>
-
-                            <div class="text-muted small">
-                                {item.etiqueta}
-                            </div>
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        {/if}
-    </div>
-</section>
-
-<!-- ==========================================
      AVANCES RECIENTES - DATATABLE
 ========================================== -->
 
