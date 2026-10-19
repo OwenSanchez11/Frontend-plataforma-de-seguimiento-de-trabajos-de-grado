@@ -352,7 +352,7 @@
 													{a.trabajo.titulo ?? 'Trabajo de grado'} · entregado el {formatoFecha(parsearFechaLocal(a.fecha_entrega))}
 												</div>
 											</div>
-											<a class="btn btn-sm btn-outline-primary flex-none" href={rutas.evaluaciones}>Revisar</a>
+											<a class="btn btn-sm btn-outline-primary flex-none" href={rutas.docente.evaluaciones}>Revisar</a>
 										</li>
 									{/each}
 								</ul>
