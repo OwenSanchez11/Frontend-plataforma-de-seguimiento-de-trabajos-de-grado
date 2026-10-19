@@ -1,5 +1,7 @@
+
 <script>
     import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
     import { sesion } from '$lib/sesion.svelte.js';
     import {
         getTrabajos,
@@ -14,7 +16,19 @@
 
     let usuario = $derived(sesion.usuario);
 
-    // Obtener listas aunque el backend devuelva diferentes estructuras
+    // ==========================================
+    // CONFIGURACIÓN DATATABLE
+    // ==========================================
+
+    let paginaActual = $state(1);
+    let registrosPorPagina = $state(5);
+    let columnaOrden = $state('fecha_entrega');
+    let direccionOrden = $state('desc');
+
+    // ==========================================
+    // OBTENER LISTAS
+    // ==========================================
+
     function obtenerLista(respuesta) {
         if (Array.isArray(respuesta)) return respuesta;
         if (Array.isArray(respuesta?.data)) return respuesta.data;
@@ -22,7 +36,10 @@
         return [];
     }
 
-    // Identificar la carrera del coordinador
+    // ==========================================
+    // IDENTIFICAR CARRERA
+    // ==========================================
+
     let idCarrera = $derived(
         usuario?.id_carrera ??
         usuario?.carrera?.id_carrera ??
@@ -30,7 +47,6 @@
         null
     );
 
-    // Filtrar los trabajos por carrera
     let trabajosCarrera = $derived(
         idCarrera
             ? trabajos.filter(
@@ -40,7 +56,10 @@
             : trabajos
     );
 
-    // Consultar información del backend
+    // ==========================================
+    // CARGAR INFORMACIÓN
+    // ==========================================
+
     async function cargarDatos() {
         cargando = true;
         error = '';
@@ -55,9 +74,16 @@
             trabajos = obtenerLista(respuestaTrabajos);
             avances = obtenerLista(respuestaAvances);
 
+            paginaActual = 1;
+
         } catch (e) {
-            console.error('Error al cargar el inicio del coordinador:', e);
-            error = e.message || 'No fue posible cargar la información.';
+            console.error(
+                'Error al cargar el inicio del coordinador:',
+                e
+            );
+
+            error = e.message ||
+                'No fue posible cargar la información.';
         } finally {
             cargando = false;
         }
@@ -67,7 +93,10 @@
         cargarDatos();
     });
 
-    // Trabajos pendientes de aprobación
+    // ==========================================
+    // TRABAJOS PENDIENTES
+    // ==========================================
+
     let pendientes = $derived(
         trabajosCarrera.filter((trabajo) => {
             const estado = String(
@@ -81,7 +110,10 @@
         })
     );
 
-    // Trabajos próximos a vencer (próximos 7 días)
+    // ==========================================
+    // TRABAJOS POR VENCER
+    // ==========================================
+
     function estaPorVencer(trabajo) {
         if (!trabajo.fecha_fin || trabajo.estado === false) {
             return false;
@@ -107,7 +139,10 @@
         trabajosCarrera.filter(estaPorVencer)
     );
 
-    // Identificar si la respuesta del backend contiene información de jurados
+    // ==========================================
+    // IDENTIFICAR JURADOS
+    // ==========================================
+
     function tieneJurado(trabajo) {
         const campos = [
             'id_jurado',
@@ -121,8 +156,13 @@
             if (campo in trabajo) {
                 const valor = trabajo[campo];
 
-                if (Array.isArray(valor)) return valor.length > 0;
-                return valor !== null && valor !== undefined && valor !== '';
+                if (Array.isArray(valor)) {
+                    return valor.length > 0;
+                }
+
+                return valor !== null &&
+                    valor !== undefined &&
+                    valor !== '';
             }
         }
 
@@ -151,7 +191,10 @@
             : null
     );
 
-    // Obtener los avances de los trabajos de la carrera
+    // ==========================================
+    // AVANCES DE LA CARRERA
+    // ==========================================
+
     let avancesCarrera = $derived(
         avances
             .filter((avance) =>
@@ -161,21 +204,12 @@
                         Number(avance.id_trabajo_grado)
                 )
             )
-            .sort((a, b) => {
-                const fechaA = new Date(
-                    a.fecha_entrega ?? 0
-                ).getTime();
-
-                const fechaB = new Date(
-                    b.fecha_entrega ?? 0
-                ).getTime();
-
-                return fechaB - fechaA;
-            })
-            .slice(0, 5)
     );
 
-    // Buscar el nombre del trabajo relacionado con cada avance
+    // ==========================================
+    // NOMBRE DEL TRABAJO
+    // ==========================================
+
     function nombreTrabajo(idTrabajo) {
         const trabajo = trabajosCarrera.find(
             (item) =>
@@ -185,7 +219,10 @@
         return trabajo?.titulo ?? 'Trabajo no encontrado';
     }
 
-    // Formatear fechas
+    // ==========================================
+    // FORMATEAR FECHAS
+    // ==========================================
+
     function formatearFecha(fecha) {
         if (!fecha) return 'Sin fecha';
 
@@ -196,6 +233,137 @@
 
         return `${partes[2]}/${partes[1]}/${partes[0]}`;
     }
+
+    // ==========================================
+    // ORDENAMIENTO DATATABLE
+    // ==========================================
+
+    function obtenerValorOrden(avance, columna) {
+        switch (columna) {
+            case 'trabajo':
+                return nombreTrabajo(avance.id_trabajo_grado);
+
+            case 'descripcion':
+                return avance.descripcion ??
+                    avance.titulo ??
+                    '';
+
+            case 'fecha_entrega':
+                return avance.fecha_entrega ?? '';
+
+            default:
+                return '';
+        }
+    }
+
+    let avancesOrdenados = $derived(
+        [...avancesCarrera].sort((a, b) => {
+            const valorA = obtenerValorOrden(a, columnaOrden);
+            const valorB = obtenerValorOrden(b, columnaOrden);
+
+            const comparacion = String(valorA).localeCompare(
+                String(valorB),
+                'es',
+                {
+                    numeric: true,
+                    sensitivity: 'base'
+                }
+            );
+
+            return direccionOrden === 'asc'
+                ? comparacion
+                : -comparacion;
+        })
+    );
+
+    function ordenarPor(columna) {
+        if (columnaOrden === columna) {
+            direccionOrden =
+                direccionOrden === 'asc' ? 'desc' : 'asc';
+        } else {
+            columnaOrden = columna;
+            direccionOrden = 'asc';
+        }
+
+        paginaActual = 1;
+    }
+
+    function iconoOrden(columna) {
+        if (columnaOrden !== columna) {
+            return 'bi-arrow-down-up';
+        }
+
+        return direccionOrden === 'asc'
+            ? 'bi-sort-up'
+            : 'bi-sort-down';
+    }
+
+    // ==========================================
+    // PAGINACIÓN DATATABLE
+    // ==========================================
+
+    let totalRegistros = $derived(
+        avancesOrdenados.length
+    );
+
+    let totalPaginas = $derived(
+        Math.max(
+            1,
+            Math.ceil(totalRegistros / registrosPorPagina)
+        )
+    );
+
+    let inicioRegistro = $derived(
+        totalRegistros === 0
+            ? 0
+            : (paginaActual - 1) * registrosPorPagina + 1
+    );
+
+    let finRegistro = $derived(
+        Math.min(
+            paginaActual * registrosPorPagina,
+            totalRegistros
+        )
+    );
+
+    let avancesPaginados = $derived(
+        avancesOrdenados.slice(
+            (paginaActual - 1) * registrosPorPagina,
+            paginaActual * registrosPorPagina
+        )
+    );
+
+    let paginasVisibles = $derived.by(() => {
+        const inicio = Math.max(
+            1,
+            Math.min(paginaActual - 2, totalPaginas - 4)
+        );
+
+        const fin = Math.min(
+            totalPaginas,
+            inicio + 4
+        );
+
+        return Array.from(
+            { length: fin - inicio + 1 },
+            (_, i) => inicio + i
+        );
+    });
+
+    function irPagina(pagina) {
+        if (pagina < 1 || pagina > totalPaginas) return;
+
+        paginaActual = pagina;
+    }
+
+    function cambiarRegistrosPorPagina(event) {
+        registrosPorPagina = Number(event.currentTarget.value);
+        paginaActual = 1;
+    }
+
+    // ==========================================
+    // RESUMEN
+    // ==========================================
 
     let resumen = $derived([
         {
@@ -215,7 +383,10 @@
         }
     ]);
 
-    
+    // ==========================================
+    // ACCESOS RÁPIDOS
+    // ==========================================
+
     let accesosRapidos = [
         {
             texto: 'Crear nuevo trabajo de grado',
@@ -226,12 +397,20 @@
             texto: 'Asignar jurado',
             icono: 'bi-people',
             ruta: '/coordinador/roles'
+        },
+        {
+            texto: 'Ver avances',
+            icono: 'bi-clipboard-check',
+            ruta: '/coordinador/avances'
         }
     ];
 
 </script>
 
-<!-- BIENVENIDA -->
+<!-- ==========================================
+     BIENVENIDA
+========================================== -->
+
 <section class="mb-4">
     <h4 class="fw-bold">
         Bienvenido, {usuario?.nombre ?? 'Coordinador'}
@@ -243,7 +422,10 @@
     </p>
 </section>
 
-<!-- MENSAJE DE ERROR -->
+<!-- ==========================================
+     MENSAJE DE ERROR
+========================================== -->
+
 {#if error}
     <div class="alert alert-danger" role="alert">
         {error}
@@ -258,10 +440,15 @@
     </div>
 {/if}
 
-<!-- ACCESOS RÁPIDOS -->
-<section class="card mb-4">
+<!-- ==========================================
+     ACCESOS RÁPIDOS
+========================================== -->
+
+<section class="card mb-4 shadow-sm">
     <div class="card-body">
-        <h6 class="fw-bold">Accesos rápidos</h6>
+        <h6 class="fw-bold mb-3">
+            Accesos rápidos
+        </h6>
 
         <div class="d-flex gap-2 flex-wrap">
             {#each accesosRapidos as acceso}
@@ -277,8 +464,11 @@
     </div>
 </section>
 
-<!-- RESUMEN -->
-<section class="card mb-4">
+<!-- ==========================================
+     RESUMEN
+========================================== -->
+
+<section class="card mb-4 shadow-sm">
     <div class="card-body">
         <h6 class="fw-bold">
             Resumen: trabajos pendientes de aprobación (su carrera)
@@ -310,44 +500,274 @@
     </div>
 </section>
 
-<!-- AVANCES RECIENTES -->
-<section class="card mb-4">
+<!-- ==========================================
+     AVANCES RECIENTES - DATATABLE
+========================================== -->
+
+<section class="card mb-4 shadow-sm">
     <div class="card-body">
-        <h6 class="fw-bold">
-            Avances recientes reportados
-        </h6>
+
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+
+            <div>
+                <h6 class="fw-bold mb-1">
+                    Avances recientes reportados
+                </h6>
+
+                <small class="text-muted">
+                    Avances correspondientes a los trabajos de tu carrera
+                </small>
+            </div>
+
+            <a
+                href="/coordinador/avances"
+                class="btn btn-primary btn-sm d-flex align-items-center gap-2"
+            >
+                <i class="bi bi-eye"></i>
+                Ver todos los avances
+            </a>
+        </div>
 
         {#if cargando}
-            <p class="text-muted mb-0">
-                Cargando avances...
-            </p>
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
 
-        {:else if avancesCarrera.length === 0}
+                <p class="text-muted mt-2 mb-0">
+                    Cargando avances...
+                </p>
+            </div>
+
+        {:else if totalRegistros === 0}
             <div class="alert alert-info mb-0">
-                No hay avances recientes registrados para tu carrera.
+                <i class="bi bi-info-circle me-2"></i>
+                No hay avances registrados para tu carrera.
             </div>
 
         {:else}
-            <ul class="list-group list-group-flush">
-                {#each avancesCarrera as item (item.id_avance)}
-                    <li class="list-group-item d-flex justify-content-between align-items-center gap-3">
-                        <div>
-                            <div class="fw-semibold">
-                                {nombreTrabajo(item.id_trabajo_grado)}
-                            </div>
 
-                            <div class="text-muted small">
-                                {item.descripcion || item.titulo || 'Sin descripción'}
-                            </div>
-                        </div>
+            <!-- SELECTOR DE REGISTROS -->
 
-                        <span class="text-muted small text-nowrap">
-                            {formatearFecha(item.fecha_entrega)}
-                        </span>
-                    </li>
-                {/each}
-            </ul>
+            <div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+
+                <label
+                    for="registrosPorPagina"
+                    class="small text-muted"
+                >
+                    Mostrar
+                </label>
+
+                <select
+                    id="registrosPorPagina"
+                    class="form-select form-select-sm selector-registros"
+                    value={registrosPorPagina}
+                    onchange={cambiarRegistrosPorPagina}
+                >
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                </select>
+
+                <span class="small text-muted">
+                    registros
+                </span>
+            </div>
+
+            <!-- TABLA -->
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle datatable">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>
+                                <button
+                                    type="button"
+                                    class="btn-orden"
+                                    onclick={() => ordenarPor('trabajo')}
+                                >
+                                    Trabajo de grado
+                                    <i class="bi {iconoOrden('trabajo')}"></i>
+                                </button>
+                            </th>
+
+                            <th>
+                                <button
+                                    type="button"
+                                    class="btn-orden"
+                                    onclick={() => ordenarPor('descripcion')}
+                                >
+                                    Descripción
+                                    <i class="bi {iconoOrden('descripcion')}"></i>
+                                </button>
+                            </th>
+
+                            <th>
+                                <button
+                                    type="button"
+                                    class="btn-orden"
+                                    onclick={() => ordenarPor('fecha_entrega')}
+                                >
+                                    Fecha de entrega
+                                    <i class="bi {iconoOrden('fecha_entrega')}"></i>
+                                </button>
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {#each avancesPaginados as item, i (item.id_avance ?? `${item.id_trabajo_grado}-${i}`)}
+                            <tr>
+                                <td class="titulo-celda fw-semibold">
+                                    {nombreTrabajo(item.id_trabajo_grado)}
+                                </td>
+
+                                <td class="descripcion-celda">
+                                    {item.descripcion || item.titulo || 'Sin descripción'}
+                                </td>
+
+                                <td class="text-nowrap">
+                                    {formatearFecha(item.fecha_entrega)}
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+
+                </table>
+            </div>
+
+            <!-- INFORMACIÓN Y PAGINACIÓN -->
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mt-3">
+
+                <div class="small text-muted">
+                    Mostrando
+                    <strong>{inicioRegistro}</strong>
+                    a
+                    <strong>{finRegistro}</strong>
+                    de
+                    <strong>{totalRegistros}</strong>
+                    registros
+                </div>
+
+                <nav aria-label="Paginación de avances">
+                    <ul class="pagination pagination-sm mb-0">
+
+                        <li
+                            class:disabled={paginaActual === 1}
+                            class="page-item"
+                        >
+                            <button
+                                type="button"
+                                class="page-link"
+                                disabled={paginaActual === 1}
+                                onclick={() => irPagina(paginaActual - 1)}
+                                aria-label="Página anterior"
+                            >
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                        </li>
+
+                        {#each paginasVisibles as pagina}
+                            <li
+                                class:active={paginaActual === pagina}
+                                class="page-item"
+                            >
+                                <button
+                                    type="button"
+                                    class="page-link"
+                                    aria-current={paginaActual === pagina ? 'page' : undefined}
+                                    onclick={() => irPagina(pagina)}
+                                >
+                                    {pagina}
+                                </button>
+                            </li>
+                        {/each}
+
+                        <li
+                            class:disabled={paginaActual === totalPaginas}
+                            class="page-item"
+                        >
+                            <button
+                                type="button"
+                                class="page-link"
+                                disabled={paginaActual === totalPaginas}
+                                onclick={() => irPagina(paginaActual + 1)}
+                                aria-label="Página siguiente"
+                            >
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </li>
+
+                    </ul>
+                </nav>
+
+            </div>
         {/if}
     </div>
 </section>
 
+<style>
+    .datatable {
+        min-width: 650px;
+        margin-bottom: 0;
+    }
+
+    .datatable thead th {
+        white-space: nowrap;
+        font-size: 0.875rem;
+        color: #495057;
+        padding: 14px 12px;
+    }
+
+    .datatable tbody td {
+        padding: 13px 12px;
+        font-size: 0.9rem;
+    }
+
+    .titulo-celda {
+        min-width: 220px;
+        max-width: 300px;
+        overflow-wrap: break-word;
+    }
+
+    .descripcion-celda {
+        min-width: 200px;
+        max-width: 400px;
+        overflow-wrap: break-word;
+    }
+
+    .btn-orden {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-orden:hover {
+        color: var(--bs-primary);
+    }
+
+    .btn-orden i {
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+
+    .selector-registros {
+        width: 75px;
+    }
+
+    .pagination .page-link {
+        cursor: pointer;
+    }
+
+    .pagination .page-item.disabled .page-link {
+        cursor: not-allowed;
+    }
+</style>

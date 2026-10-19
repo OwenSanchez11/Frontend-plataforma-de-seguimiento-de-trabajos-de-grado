@@ -1,3 +1,4 @@
+
 <script>
     import { onMount } from 'svelte';
     import {
@@ -8,16 +9,39 @@
         eliminarTrabajoGrado
     } from '$lib/api';
 
+    // ==========================================
+    // FILTROS
+    // ==========================================
+
     let filtroBusqueda = $state('');
     let filtroEstado = $state('');
     let filtroPrograma = $state('');
 
+    // ==========================================
+    // DATOS
+    // ==========================================
+
     let trabajosGrado = $state([]);
     let carreras = $state([]);
+
     let cargando = $state(true);
     let error = $state('');
     let mensaje = $state('');
     let guardando = $state(false);
+
+    // ==========================================
+    // CONFIGURACIÓN DATATABLE
+    // ==========================================
+
+    let paginaActual = $state(1);
+    let registrosPorPagina = $state(10);
+
+    let columnaOrden = $state('titulo');
+    let direccionOrden = $state('asc');
+
+    // ==========================================
+    // FORMULARIO CRUD
+    // ==========================================
 
     let mostrarFormulario = $state(false);
     let modoEdicion = $state(false);
@@ -40,6 +64,10 @@
         cargarDatos();
     });
 
+    // ==========================================
+    // CARGAR INFORMACIÓN
+    // ==========================================
+
     async function cargarDatos() {
         cargando = true;
         error = '';
@@ -58,6 +86,9 @@
             carreras = Array.isArray(respuestaCarreras)
                 ? respuestaCarreras
                 : [];
+
+            paginaActual = 1;
+
         } catch (e) {
             console.error('Error al cargar trabajos de grado:', e);
             error = 'No fue posible cargar los trabajos de grado.';
@@ -66,6 +97,10 @@
         }
     }
 
+    // ==========================================
+    // UTILIDADES
+    // ==========================================
+
     function nombreCarrera(idCarrera) {
         const carrera = carreras.find(
             (c) => Number(c.id_carrera) === Number(idCarrera)
@@ -73,6 +108,16 @@
 
         return carrera?.nombre_carrera ?? `Carrera ${idCarrera}`;
     }
+
+    function normalizarFecha(fecha) {
+        if (!fecha) return '';
+
+        return String(fecha).slice(0, 10);
+    }
+
+    // ==========================================
+    // FILTRADO DE REGISTROS
+    // ==========================================
 
     let trabajosFiltrados = $derived(
         trabajosGrado.filter((trabajo) => {
@@ -103,6 +148,144 @@
         })
     );
 
+    // ==========================================
+    // ORDENAMIENTO DE COLUMNAS
+    // ==========================================
+
+    function obtenerValorOrden(trabajo, columna) {
+        switch (columna) {
+            case 'titulo':
+                return trabajo.titulo ?? '';
+
+            case 'carrera':
+                return nombreCarrera(trabajo.id_carrera);
+
+            case 'estado_tramite':
+                return trabajo.estado_tramite ?? '';
+
+            case 'fecha_inicio':
+                return trabajo.fecha_inicio ?? '';
+
+            default:
+                return '';
+        }
+    }
+
+    let trabajosOrdenados = $derived(
+        [...trabajosFiltrados].sort((a, b) => {
+            const valorA = obtenerValorOrden(a, columnaOrden);
+            const valorB = obtenerValorOrden(b, columnaOrden);
+
+            const comparacion = String(valorA).localeCompare(
+                String(valorB),
+                'es',
+                {
+                    numeric: true,
+                    sensitivity: 'base'
+                }
+            );
+
+            return direccionOrden === 'asc'
+                ? comparacion
+                : -comparacion;
+        })
+    );
+
+    function ordenarPor(columna) {
+        if (columnaOrden === columna) {
+            direccionOrden =
+                direccionOrden === 'asc' ? 'desc' : 'asc';
+        } else {
+            columnaOrden = columna;
+            direccionOrden = 'asc';
+        }
+
+        paginaActual = 1;
+    }
+
+    function iconoOrden(columna) {
+        if (columnaOrden !== columna) {
+            return 'bi-arrow-down-up';
+        }
+
+        return direccionOrden === 'asc'
+            ? 'bi-sort-up'
+            : 'bi-sort-down';
+    }
+
+    // ==========================================
+    // PAGINACIÓN
+    // ==========================================
+
+    let totalRegistros = $derived(
+        trabajosOrdenados.length
+    );
+
+    let totalPaginas = $derived(
+        Math.max(1, Math.ceil(totalRegistros / registrosPorPagina))
+    );
+
+    let inicioRegistro = $derived(
+        totalRegistros === 0
+            ? 0
+            : (paginaActual - 1) * registrosPorPagina + 1
+    );
+
+    let finRegistro = $derived(
+        Math.min(
+            paginaActual * registrosPorPagina,
+            totalRegistros
+        )
+    );
+
+    let trabajosPaginados = $derived(
+        trabajosOrdenados.slice(
+            (paginaActual - 1) * registrosPorPagina,
+            paginaActual * registrosPorPagina
+        )
+    );
+
+    let paginasVisibles = $derived.by(() => {
+        const inicio = Math.max(
+            1,
+            Math.min(paginaActual - 2, totalPaginas - 4)
+        );
+
+        const fin = Math.min(
+            totalPaginas,
+            inicio + 4
+        );
+
+        return Array.from(
+            { length: fin - inicio + 1 },
+            (_, i) => inicio + i
+        );
+    });
+
+    function irPagina(pagina) {
+        if (pagina < 1 || pagina > totalPaginas) return;
+
+        paginaActual = pagina;
+    }
+
+    function cambiarRegistrosPorPagina(event) {
+        registrosPorPagina = Number(event.currentTarget.value);
+        paginaActual = 1;
+    }
+
+    // Reiniciar la paginación cuando cambien los filtros.
+    $effect(() => {
+        filtroBusqueda;
+        filtroEstado;
+        filtroPrograma;
+
+        paginaActual = 1;
+    });
+
+    // ==========================================
+    // CREAR TRABAJO
+    // ==========================================
+
     function abrirCrear() {
         modoEdicion = false;
         trabajoIdEditar = null;
@@ -125,6 +308,10 @@
         mostrarFormulario = true;
     }
 
+    // ==========================================
+    // EDITAR TRABAJO
+    // ==========================================
+
     function abrirEditar(trabajo) {
         modoEdicion = true;
         trabajoIdEditar = trabajo.id_trabajo_grado;
@@ -133,14 +320,16 @@
             id_carrera: String(trabajo.id_carrera ?? ''),
             titulo: trabajo.titulo ?? '',
             resumen: trabajo.resumen ?? '',
-            linea_investigacion: trabajo.linea_investigacion ?? '',
-            estado_tramite: trabajo.estado_tramite ?? 'En desarrollo',
+            linea_investigacion:
+                trabajo.linea_investigacion ?? '',
+            estado_tramite:
+                trabajo.estado_tramite ?? 'En desarrollo',
             fecha_inicio: normalizarFecha(trabajo.fecha_inicio),
             fecha_fin: normalizarFecha(trabajo.fecha_fin),
-            fecha_sustentacion: normalizarFecha(
-                trabajo.fecha_sustentacion
-            ),
-            observaciones_finales: trabajo.observaciones_finales ?? '',
+            fecha_sustentacion:
+                normalizarFecha(trabajo.fecha_sustentacion),
+            observaciones_finales:
+                trabajo.observaciones_finales ?? '',
             estado: trabajo.estado ?? true
         };
 
@@ -149,11 +338,9 @@
         mostrarFormulario = true;
     }
 
-    function normalizarFecha(fecha) {
-        if (!fecha) return '';
-
-        return String(fecha).slice(0, 10);
-    }
+    // ==========================================
+    // CERRAR FORMULARIO
+    // ==========================================
 
     function cerrarFormulario() {
         if (guardando) return;
@@ -161,6 +348,10 @@
         mostrarFormulario = false;
         error = '';
     }
+
+    // ==========================================
+    // GUARDAR TRABAJO
+    // ==========================================
 
     async function guardarTrabajo() {
         mensaje = '';
@@ -171,7 +362,8 @@
             !formulario.titulo.trim() ||
             !formulario.estado_tramite
         ) {
-            error = 'Completa la carrera, el título y el estado del trámite.';
+            error =
+                'Completa la carrera, el título y el estado del trámite.';
             return;
         }
 
@@ -184,7 +376,8 @@
             estado_tramite: formulario.estado_tramite,
             fecha_inicio: formulario.fecha_inicio || null,
             fecha_fin: formulario.fecha_fin || null,
-            fecha_sustentacion: formulario.fecha_sustentacion || null,
+            fecha_sustentacion:
+                formulario.fecha_sustentacion || null,
             observaciones_finales:
                 formulario.observaciones_finales.trim() || null,
             estado: formulario.estado
@@ -194,23 +387,40 @@
 
         try {
             if (modoEdicion) {
-                await actualizarTrabajoGrado(trabajoIdEditar, datos);
-                mensaje = 'Trabajo de grado actualizado correctamente.';
+                await actualizarTrabajoGrado(
+                    trabajoIdEditar,
+                    datos
+                );
+
+                mensaje =
+                    'Trabajo de grado actualizado correctamente.';
             } else {
                 await crearTrabajoGrado(datos);
-                mensaje = 'Trabajo de grado creado correctamente.';
+
+                mensaje =
+                    'Trabajo de grado creado correctamente.';
             }
 
             mostrarFormulario = false;
+
             await cargarDatos();
+
         } catch (e) {
-            console.error('Error al guardar trabajo de grado:', e);
+            console.error(
+                'Error al guardar trabajo de grado:',
+                e
+            );
+
             error = e?.message ||
                 'No fue posible guardar el trabajo de grado.';
         } finally {
             guardando = false;
         }
     }
+
+    // ==========================================
+    // ELIMINAR TRABAJO
+    // ==========================================
 
     async function eliminarTrabajo(trabajo) {
         const confirmar = window.confirm(
@@ -223,16 +433,30 @@
         mensaje = '';
 
         try {
-            await eliminarTrabajoGrado(trabajo.id_trabajo_grado);
-            mensaje = 'Trabajo de grado eliminado correctamente.';
+            await eliminarTrabajoGrado(
+                trabajo.id_trabajo_grado
+            );
+
+            mensaje =
+                'Trabajo de grado eliminado correctamente.';
+
             await cargarDatos();
+
         } catch (e) {
-            console.error('Error al eliminar trabajo de grado:', e);
+            console.error(
+                'Error al eliminar trabajo de grado:',
+                e
+            );
+
             error = e?.message ||
                 'No fue posible eliminar el trabajo de grado.';
         }
     }
 </script>
+
+<!-- ==========================================
+     ENCABEZADO
+========================================== -->
 
 <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
     <h4 class="fw-bold mb-0">Trabajos de Grado</h4>
@@ -247,9 +471,14 @@
     </button>
 </div>
 
+<!-- ==========================================
+     MENSAJES
+========================================== -->
+
 {#if mensaje}
     <div class="alert alert-success alert-dismissible" role="status">
         {mensaje}
+
         <button
             type="button"
             class="btn-close"
@@ -262,6 +491,7 @@
 {#if error && !mostrarFormulario}
     <div class="alert alert-danger" role="alert">
         {error}
+
         <button
             type="button"
             class="btn btn-sm btn-outline-danger ms-2"
@@ -272,9 +502,16 @@
     </div>
 {/if}
 
-<section class="card mb-4">
+<!-- ==========================================
+     FILTROS
+========================================== -->
+
+<section class="card mb-4 shadow-sm">
     <div class="card-body">
-        <h6 class="fw-bold">Filtros</h6>
+        <h6 class="fw-bold mb-3">
+            <i class="bi bi-funnel me-1"></i>
+            Filtros
+        </h6>
 
         <div class="row g-3">
             <div class="col-md-4">
@@ -338,35 +575,128 @@
     </div>
 </section>
 
-<section class="card mb-4">
+<!-- ==========================================
+     DATATABLE
+========================================== -->
+
+<section class="card mb-4 shadow-sm">
     <div class="card-body">
-        <h6 class="fw-bold">
-            Listado de trabajos de grado de todas las carreras
-        </h6>
+
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+            <div>
+                <h6 class="fw-bold mb-1">
+                    Listado de trabajos de grado
+                </h6>
+
+                <small class="text-muted">
+                    Trabajos de grado de todas las carreras
+                </small>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <label for="registrosPorPagina" class="small text-muted">
+                    Mostrar
+                </label>
+
+                <select
+                    id="registrosPorPagina"
+                    class="form-select form-select-sm selector-registros"
+                    value={registrosPorPagina}
+                    onchange={cambiarRegistrosPorPagina}
+                >
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+
+                <span class="small text-muted">registros</span>
+            </div>
+        </div>
 
         {#if cargando}
-            <p class="text-muted">Cargando trabajos de grado...</p>
-        {:else if trabajosFiltrados.length === 0}
-            <div class="alert alert-info" role="status">
+            <div class="text-center py-5">
+                <div
+                    class="spinner-border text-primary"
+                    role="status"
+                >
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+
+                <p class="text-muted mt-2 mb-0">
+                    Cargando trabajos de grado...
+                </p>
+            </div>
+
+        {:else if totalRegistros === 0}
+            <div class="alert alert-info mb-0" role="status">
+                <i class="bi bi-info-circle me-2"></i>
                 No hay trabajos de grado para los filtros seleccionados.
             </div>
+
         {:else}
+
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead>
+                <table class="table table-hover align-middle datatable">
+                    <thead class="table-light">
                         <tr>
-                            <th>Título</th>
-                            <th>Carrera</th>
-                            <th>Estado del trámite</th>
-                            <th>Fecha de inicio</th>
-                            <th class="text-end">Acciones</th>
+                            <th>
+                                <button
+                                    type="button"
+                                    class="btn-orden"
+                                    onclick={() => ordenarPor('titulo')}
+                                >
+                                    Título
+                                    <i class="bi {iconoOrden('titulo')}"></i>
+                                </button>
+                            </th>
+
+                            <th>
+                                <button
+                                    type="button"
+                                    class="btn-orden"
+                                    onclick={() => ordenarPor('carrera')}
+                                >
+                                    Carrera
+                                    <i class="bi {iconoOrden('carrera')}"></i>
+                                </button>
+                            </th>
+
+                            <th>
+                                <button
+                                    type="button"
+                                    class="btn-orden"
+                                    onclick={() => ordenarPor('estado_tramite')}
+                                >
+                                    Estado del trámite
+                                    <i class="bi {iconoOrden('estado_tramite')}"></i>
+                                </button>
+                            </th>
+
+                            <th>
+                                <button
+                                    type="button"
+                                    class="btn-orden"
+                                    onclick={() => ordenarPor('fecha_inicio')}
+                                >
+                                    Fecha de inicio
+                                    <i class="bi {iconoOrden('fecha_inicio')}"></i>
+                                </button>
+                            </th>
+
+                            <th class="text-end">
+                                Acciones
+                            </th>
                         </tr>
                     </thead>
 
                     <tbody>
-                        {#each trabajosFiltrados as trabajo (trabajo.id_trabajo_grado)}
+                        {#each trabajosPaginados as trabajo (trabajo.id_trabajo_grado)}
                             <tr>
-                                <td>{trabajo.titulo}</td>
+                                <td class="titulo-celda">
+                                    {trabajo.titulo}
+                                </td>
 
                                 <td>
                                     {nombreCarrera(trabajo.id_carrera)}
@@ -382,7 +712,7 @@
                                     {normalizarFecha(trabajo.fecha_inicio) || 'Sin fecha'}
                                 </td>
 
-                                <td class="text-end">
+                                <td class="text-end text-nowrap">
                                     <button
                                         type="button"
                                         class="btn btn-sm btn-outline-primary me-1"
@@ -408,9 +738,76 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- INFORMACIÓN DE REGISTROS -->
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mt-3">
+
+                <div class="small text-muted">
+                    Mostrando
+                    <strong>{inicioRegistro}</strong>
+                    a
+                    <strong>{finRegistro}</strong>
+                    de
+                    <strong>{totalRegistros}</strong>
+                    registros
+                </div>
+
+                <!-- PAGINACIÓN -->
+
+                <nav aria-label="Paginación de trabajos de grado">
+                    <ul class="pagination pagination-sm mb-0">
+
+                        <li class:disabled={paginaActual === 1} class="page-item">
+                            <button
+                                type="button"
+                                class="page-link"
+                                disabled={paginaActual === 1}
+                                onclick={() => irPagina(paginaActual - 1)}
+                                aria-label="Página anterior"
+                            >
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                        </li>
+
+                        {#each paginasVisibles as pagina}
+                            <li
+                                class:active={paginaActual === pagina}
+                                class="page-item"
+                            >
+                                <button
+                                    type="button"
+                                    class="page-link"
+                                    aria-current={paginaActual === pagina ? 'page' : undefined}
+                                    onclick={() => irPagina(pagina)}
+                                >
+                                    {pagina}
+                                </button>
+                            </li>
+                        {/each}
+
+                        <li class:disabled={paginaActual === totalPaginas} class="page-item">
+                            <button
+                                type="button"
+                                class="page-link"
+                                disabled={paginaActual === totalPaginas}
+                                onclick={() => irPagina(paginaActual + 1)}
+                                aria-label="Página siguiente"
+                            >
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </li>
+
+                    </ul>
+                </nav>
+            </div>
         {/if}
     </div>
 </section>
+
+<!-- ==========================================
+     MODAL CREAR / EDITAR
+========================================== -->
 
 {#if mostrarFormulario}
     <div
@@ -423,6 +820,7 @@
     >
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
+
                 <form
                     class="modal-form"
                     onsubmit={(event) => {
@@ -431,7 +829,10 @@
                     }}
                 >
                     <div class="modal-header">
-                        <h5 class="modal-title fw-bold" id="tituloModalTrabajo">
+                        <h5
+                            class="modal-title fw-bold"
+                            id="tituloModalTrabajo"
+                        >
                             {modoEdicion
                                 ? 'Editar trabajo de grado'
                                 : 'Nuevo trabajo de grado'}
@@ -447,6 +848,7 @@
                     </div>
 
                     <div class="modal-body">
+
                         {#if error}
                             <div class="alert alert-danger" role="alert">
                                 {error}
@@ -454,8 +856,12 @@
                         {/if}
 
                         <div class="row g-3">
+
                             <div class="col-md-6">
-                                <label class="form-label" for="carreraTrabajo">
+                                <label
+                                    class="form-label"
+                                    for="carreraTrabajo"
+                                >
                                     Carrera *
                                 </label>
 
@@ -465,7 +871,9 @@
                                     bind:value={formulario.id_carrera}
                                     required
                                 >
-                                    <option value="">Selecciona una carrera</option>
+                                    <option value="">
+                                        Selecciona una carrera
+                                    </option>
 
                                     {#each carreras as carrera}
                                         <option value={String(carrera.id_carrera)}>
@@ -476,7 +884,10 @@
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label" for="estadoTramite">
+                                <label
+                                    class="form-label"
+                                    for="estadoTramite"
+                                >
                                     Estado del trámite *
                                 </label>
 
@@ -486,16 +897,33 @@
                                     bind:value={formulario.estado_tramite}
                                     required
                                 >
-                                    <option value="En desarrollo">En desarrollo</option>
-                                    <option value="En revisión">En revisión</option>
-                                    <option value="Aprobado">Aprobado</option>
-                                    <option value="Rechazado">Rechazado</option>
-                                    <option value="Finalizado">Finalizado</option>
+                                    <option value="En desarrollo">
+                                        En desarrollo
+                                    </option>
+
+                                    <option value="En revisión">
+                                        En revisión
+                                    </option>
+
+                                    <option value="Aprobado">
+                                        Aprobado
+                                    </option>
+
+                                    <option value="Rechazado">
+                                        Rechazado
+                                    </option>
+
+                                    <option value="Finalizado">
+                                        Finalizado
+                                    </option>
                                 </select>
                             </div>
 
                             <div class="col-12">
-                                <label class="form-label" for="tituloTrabajo">
+                                <label
+                                    class="form-label"
+                                    for="tituloTrabajo"
+                                >
                                     Título *
                                 </label>
 
@@ -510,7 +938,10 @@
                             </div>
 
                             <div class="col-12">
-                                <label class="form-label" for="resumenTrabajo">
+                                <label
+                                    class="form-label"
+                                    for="resumenTrabajo"
+                                >
                                     Resumen
                                 </label>
 
@@ -523,7 +954,10 @@
                             </div>
 
                             <div class="col-12">
-                                <label class="form-label" for="lineaInvestigacion">
+                                <label
+                                    class="form-label"
+                                    for="lineaInvestigacion"
+                                >
                                     Línea de investigación
                                 </label>
 
@@ -536,7 +970,10 @@
                             </div>
 
                             <div class="col-md-4">
-                                <label class="form-label" for="fechaInicio">
+                                <label
+                                    class="form-label"
+                                    for="fechaInicio"
+                                >
                                     Fecha de inicio
                                 </label>
 
@@ -549,7 +986,10 @@
                             </div>
 
                             <div class="col-md-4">
-                                <label class="form-label" for="fechaFin">
+                                <label
+                                    class="form-label"
+                                    for="fechaFin"
+                                >
                                     Fecha de finalización
                                 </label>
 
@@ -562,7 +1002,10 @@
                             </div>
 
                             <div class="col-md-4">
-                                <label class="form-label" for="fechaSustentacion">
+                                <label
+                                    class="form-label"
+                                    for="fechaSustentacion"
+                                >
                                     Fecha de sustentación
                                 </label>
 
@@ -575,7 +1018,10 @@
                             </div>
 
                             <div class="col-12">
-                                <label class="form-label" for="observacionesFinales">
+                                <label
+                                    class="form-label"
+                                    for="observacionesFinales"
+                                >
                                     Observaciones finales
                                 </label>
 
@@ -596,11 +1042,15 @@
                                         bind:checked={formulario.estado}
                                     />
 
-                                    <label class="form-check-label" for="trabajoActivo">
+                                    <label
+                                        class="form-check-label"
+                                        for="trabajoActivo"
+                                    >
                                         Trabajo de grado activo
                                     </label>
                                 </div>
                             </div>
+
                         </div>
                     </div>
 
@@ -620,9 +1070,15 @@
                             disabled={guardando}
                         >
                             {#if guardando}
+                                <span
+                                    class="spinner-border spinner-border-sm me-1"
+                                    aria-hidden="true"
+                                ></span>
                                 Guardando...
                             {:else}
-                                {modoEdicion ? 'Guardar cambios' : 'Crear trabajo'}
+                                {modoEdicion
+                                    ? 'Guardar cambios'
+                                    : 'Crear trabajo'}
                             {/if}
                         </button>
                     </div>
@@ -632,7 +1088,67 @@
     </div>
 {/if}
 
+<!-- ==========================================
+     ESTILOS
+========================================== -->
+
 <style>
+    .datatable {
+        min-width: 750px;
+        margin-bottom: 0;
+    }
+
+    .datatable thead th {
+        white-space: nowrap;
+        font-size: 0.875rem;
+        color: #495057;
+        padding: 14px 12px;
+    }
+
+    .datatable tbody td {
+        padding: 13px 12px;
+        font-size: 0.9rem;
+    }
+
+    .titulo-celda {
+        min-width: 220px;
+        max-width: 350px;
+        overflow-wrap: break-word;
+    }
+
+    .btn-orden {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: inherit;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-orden:hover {
+        color: var(--bs-primary);
+    }
+
+    .btn-orden i {
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+
+    .selector-registros {
+        width: 75px;
+    }
+
+    .pagination .page-link {
+        cursor: pointer;
+    }
+
+    .pagination .page-item.disabled .page-link {
+        cursor: not-allowed;
+    }
+
     .modal-form {
         display: flex;
         flex: 1 1 auto;
