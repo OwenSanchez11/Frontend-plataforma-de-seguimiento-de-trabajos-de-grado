@@ -1,10 +1,13 @@
+
 <script>
     import { onMount } from 'svelte';
+    import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
+
     import {
         getEvaluaciones,
         getTrabajos,
         getUsuarios,
-        getEquiposTrabajo,
+        getAvances,
         crearEvaluacion,
         editarEvaluacion,
         eliminarEvaluacion
@@ -13,7 +16,7 @@
     let evaluaciones = $state([]);
     let trabajos = $state([]);
     let usuarios = $state([]);
-    let equipos = $state([]);
+    let avances = $state([]);
 
     let cargando = $state(true);
     let guardando = $state(false);
@@ -29,6 +32,7 @@
 
     let formulario = $state({
         id_trabajo_grado: '',
+        id_avance: '',
         id_usuario: '',
         nota: '',
         veredicto: '',
@@ -37,6 +41,31 @@
         estado: true
     });
 
+    const columnas = [
+        {
+            data: 'trabajoHtml',
+            title: 'Trabajo de grado'
+        },
+        {
+            data: 'fechaHtml',
+            title: 'Fecha de evaluación'
+        },
+        {
+            data: 'notaHtml',
+            title: 'Nota'
+        },
+        {
+            data: 'veredictoHtml',
+            title: 'Veredicto'
+        },
+        {
+            data: 'accionesHtml',
+            title: 'Acciones',
+            orderable: false,
+            searchable: false
+        }
+    ];
+
     function obtenerLista(respuesta) {
         if (Array.isArray(respuesta)) return respuesta;
         if (Array.isArray(respuesta?.data)) return respuesta.data;
@@ -44,16 +73,18 @@
         return [];
     }
 
-    function obtenerNombreUsuario(idUsuario) {
-        const usuario = usuarios.find(
-            (u) => Number(u.id_user) === Number(idUsuario)
-        );
+    function escaparHtml(valor) {
+        return String(valor ?? '').replace(/[&<>"']/g, (caracter) => {
+            const entidades = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
 
-        if (!usuario) return 'Usuario no encontrado';
-
-        return `${usuario.nombre ?? ''} ${usuario.apellido ?? ''}`.trim()
-            || usuario.username
-            || 'Sin nombre';
+            return entidades[caracter];
+        });
     }
 
     function obtenerNombreTrabajo(idTrabajo) {
@@ -64,31 +95,20 @@
         return trabajo?.titulo ?? 'Trabajo no encontrado';
     }
 
-    function obtenerEstudiantes(idTrabajo) {
-        const estudiantes = equipos
-            .filter((equipo) =>
-                Number(equipo.id_trabajo_grado) === Number(idTrabajo)
-                && Number(equipo.id_rol_proyecto) === 2
-                && (
-                    equipo.estado === true
-                    || equipo.estado === 1
-                    || equipo.estado === 'true'
-                )
-            )
-            .map((equipo) => obtenerNombreUsuario(equipo.id_usuario))
-            .filter((nombre) => nombre !== 'Usuario no encontrado');
-
-        return [...new Set(estudiantes)].join(', ') || 'Sin estudiante asignado';
-    }
-
     function clasificarVeredicto(veredicto) {
         const valor = String(veredicto ?? '').trim().toLowerCase();
 
         if (!valor) return 'pendiente';
-        if (valor.includes('aprob')) return 'aprobado';
-        if (valor.includes('reprob') || valor.includes('rechaz')) {
+
+        if (
+            valor.includes('no aprobado')
+            || valor.includes('reprob')
+            || valor.includes('rechaz')
+        ) {
             return 'reprobado';
         }
+
+        if (valor.includes('aprob')) return 'aprobado';
 
         return 'otros';
     }
@@ -110,18 +130,63 @@
     }
 
     function construirResultados() {
-        return evaluaciones.map((evaluacion) => ({
-            id: evaluacion.id_evaluacion,
-            estudiante: obtenerEstudiantes(evaluacion.id_trabajo_grado),
-            trabajo: obtenerNombreTrabajo(evaluacion.id_trabajo_grado),
-            evaluador: obtenerNombreUsuario(evaluacion.id_usuario),
-            fecha: evaluacion.fecha_evaluacion
+        return evaluaciones.map((evaluacion) => {
+            const estado = clasificarVeredicto(evaluacion.veredicto);
+            const id = evaluacion.id_evaluacion;
+
+            const trabajo = obtenerNombreTrabajo(
+                evaluacion.id_trabajo_grado
+            );
+
+            const fecha = evaluacion.fecha_evaluacion
                 ? String(evaluacion.fecha_evaluacion).slice(0, 10)
-                : '',
-            nota: evaluacion.nota,
-            veredicto: evaluacion.veredicto,
-            estado: clasificarVeredicto(evaluacion.veredicto)
-        }));
+                : '';
+
+            const nota = evaluacion.nota ?? '—';
+            const veredicto = mostrarVeredicto(evaluacion.veredicto);
+
+            return {
+                id,
+                fecha,
+                estado,
+
+                trabajoHtml: escaparHtml(trabajo),
+                fechaHtml: escaparHtml(fecha || '—'),
+                notaHtml: escaparHtml(nota),
+
+                veredictoHtml: `
+                    <span class="badge ${claseBadgeEstado(estado)}">
+                        ${escaparHtml(veredicto)}
+                    </span>
+                `,
+
+                accionesHtml: `
+                    <div class="d-flex gap-2">
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary"
+                            data-accion="editar"
+                            data-id="${escaparHtml(id)}"
+                            title="Editar evaluación"
+                            aria-label="Editar evaluación"
+                        >
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            data-accion="eliminar"
+                            data-id="${escaparHtml(id)}"
+                            title="Eliminar evaluación"
+                            aria-label="Eliminar evaluación"
+                        >
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                `
+            };
+        });
     }
 
     let resultadosSustentacion = $derived(construirResultados());
@@ -138,6 +203,10 @@
 
     let resultadosFiltrados = $derived(
         resultadosSustentacion.filter((resultado) => {
+            const evaluacion = evaluaciones.find(
+                (e) => Number(e.id_evaluacion) === Number(resultado.id)
+            );
+
             const coincideVeredicto =
                 filtroVeredicto === ''
                 || resultado.estado === filtroVeredicto;
@@ -146,8 +215,16 @@
                 filtroPeriodo === ''
                 || resultado.fecha.startsWith(filtroPeriodo);
 
-            return coincideVeredicto && coincidePeriodo;
+            return coincideVeredicto && coincidePeriodo && evaluacion;
         })
+    );
+
+    let avancesDelTrabajo = $derived(
+        avances.filter(
+            (avance) =>
+                Number(avance.id_trabajo_grado) ===
+                Number(formulario.id_trabajo_grado)
+        )
     );
 
     async function cargarDatos() {
@@ -159,20 +236,22 @@
                 respuestaEvaluaciones,
                 respuestaTrabajos,
                 respuestaUsuarios,
-                respuestaEquipos
+                respuestaAvances
             ] = await Promise.all([
                 getEvaluaciones(),
                 getTrabajos(),
                 getUsuarios(),
-                getEquiposTrabajo()
+                getAvances()
             ]);
 
             evaluaciones = obtenerLista(respuestaEvaluaciones);
             trabajos = obtenerLista(respuestaTrabajos);
             usuarios = obtenerLista(respuestaUsuarios);
-            equipos = obtenerLista(respuestaEquipos);
+            avances = obtenerLista(respuestaAvances);
+
         } catch (e) {
             console.error('Error al cargar las evaluaciones:', e);
+
             error = 'No fue posible cargar las evaluaciones. Verifica que el backend esté funcionando.';
         } finally {
             cargando = false;
@@ -191,6 +270,7 @@
 
         formulario = {
             id_trabajo_grado: '',
+            id_avance: '',
             id_usuario: '',
             nota: '',
             veredicto: '',
@@ -210,6 +290,7 @@
 
         formulario = {
             id_trabajo_grado: String(evaluacion.id_trabajo_grado ?? ''),
+            id_avance: String(evaluacion.id_avance ?? ''),
             id_usuario: String(evaluacion.id_usuario ?? ''),
             nota: String(evaluacion.nota ?? ''),
             veredicto: evaluacion.veredicto ?? '',
@@ -223,8 +304,29 @@
         modalAbierto = true;
     }
 
+    function manejarAccion(accion, id) {
+        const original = evaluaciones.find(
+            (e) => Number(e.id_evaluacion) === Number(id)
+        );
+
+        if (!original) return;
+
+        if (accion === 'editar') {
+            abrirEditar(original);
+        }
+
+        if (accion === 'eliminar') {
+            eliminarRegistro(original);
+        }
+    }
+
+    function cambiarTrabajo() {
+        formulario.id_avance = '';
+    }
+
     function cerrarModal() {
         if (guardando) return;
+
         modalAbierto = false;
     }
 
@@ -236,12 +338,13 @@
 
         if (
             !formulario.id_trabajo_grado
+            || !formulario.id_avance
             || !formulario.id_usuario
             || formulario.nota === ''
             || !formulario.fecha_evaluacion
             || !formulario.veredicto.trim()
         ) {
-            error = 'Completa los campos obligatorios antes de guardar.';
+            error = 'Completa todos los campos obligatorios antes de guardar.';
             return;
         }
 
@@ -254,10 +357,10 @@
 
         const payload = {
             id_trabajo_grado: Number(formulario.id_trabajo_grado),
-            id_usuario: Number(formulario.id_usuario),
+            id_avance: Number(formulario.id_avance),
             nota,
             veredicto: formulario.veredicto.trim(),
-            observaciones: formulario.observaciones.trim(),
+            observaciones: formulario.observaciones.trim() || null,
             fecha_evaluacion: formulario.fecha_evaluacion,
             estado: formulario.estado
         };
@@ -270,16 +373,21 @@
                     evaluacionSeleccionada.id_evaluacion,
                     payload
                 );
+
                 mensaje = 'Evaluación actualizada correctamente.';
             } else {
                 await crearEvaluacion(payload);
+
                 mensaje = 'Evaluación creada correctamente.';
             }
 
             modalAbierto = false;
+
             await cargarDatos();
+
         } catch (e) {
             console.error('Error al guardar la evaluación:', e);
+
             error = e.message || 'No fue posible guardar la evaluación.';
         } finally {
             guardando = false;
@@ -298,10 +406,14 @@
 
         try {
             await eliminarEvaluacion(evaluacion.id_evaluacion);
+
             mensaje = 'Evaluación eliminada correctamente.';
+
             await cargarDatos();
+
         } catch (e) {
             console.error('Error al eliminar la evaluación:', e);
+
             error = e.message || 'No fue posible eliminar la evaluación.';
         }
     }
@@ -367,6 +479,7 @@
 {#if mensaje}
     <div class="alert alert-success alert-dismissible" role="status">
         {mensaje}
+
         <button
             type="button"
             class="btn-close"
@@ -393,6 +506,7 @@
                 <div class="spinner-border" role="status">
                     <span class="visually-hidden">Cargando...</span>
                 </div>
+
                 <p class="text-muted mt-2">Cargando evaluaciones...</p>
             </div>
         {:else if error && evaluaciones.length === 0}
@@ -404,77 +518,11 @@
                 Evaluaciones encontradas: {resultadosFiltrados.length}
             </p>
 
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th>Estudiante</th>
-                            <th>Trabajo de grado</th>
-                            <th>Evaluador</th>
-                            <th>Fecha de evaluación</th>
-                            <th>Nota</th>
-                            <th>Veredicto</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {#each resultadosFiltrados as resultado (resultado.id)}
-                            <tr>
-                                <td>{resultado.estudiante}</td>
-                                <td>{resultado.trabajo}</td>
-                                <td>{resultado.evaluador}</td>
-                                <td>{resultado.fecha || '—'}</td>
-                                <td>{resultado.nota ?? '—'}</td>
-                                <td>
-                                    <span class="badge {claseBadgeEstado(resultado.estado)}">
-                                        {mostrarVeredicto(resultado.veredicto)}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="d-flex gap-2">
-                                        <button
-                                            type="button"
-                                            class="btn btn-sm btn-outline-primary"
-                                            title="Editar evaluación"
-                                            aria-label="Editar evaluación"
-                                            onclick={() => {
-                                                const original = evaluaciones.find(
-                                                    (e) => Number(e.id_evaluacion) === Number(resultado.id)
-                                                );
-                                                if (original) abrirEditar(original);
-                                            }}
-                                        >
-                                            <i class="bi bi-pencil-square"></i>
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            class="btn btn-sm btn-outline-danger"
-                                            title="Eliminar evaluación"
-                                            aria-label="Eliminar evaluación"
-                                            onclick={() => {
-                                                const original = evaluaciones.find(
-                                                    (e) => Number(e.id_evaluacion) === Number(resultado.id)
-                                                );
-                                                if (original) eliminarRegistro(original);
-                                            }}
-                                        >
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        {:else}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    No hay evaluaciones que coincidan con los filtros.
-                                </td>
-                            </tr>
-                        {/each}
-                    </tbody>
-                </table>
-            </div>
+            <DataTableWrapper
+                {columnas}
+                filas={resultadosFiltrados}
+                onAccion={manejarAccion}
+            />
         {/if}
     </div>
 </section>
@@ -515,6 +563,7 @@
                                     id="trabajo"
                                     class="form-select"
                                     bind:value={formulario.id_trabajo_grado}
+                                    onchange={cambiarTrabajo}
                                     required
                                 >
                                     <option value="">Selecciona un trabajo</option>
@@ -525,6 +574,34 @@
                                         </option>
                                     {/each}
                                 </select>
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label" for="avance">
+                                    Avance que se va a evaluar *
+                                </label>
+
+                                <select
+                                    id="avance"
+                                    class="form-select"
+                                    bind:value={formulario.id_avance}
+                                    required
+                                    disabled={!formulario.id_trabajo_grado}
+                                >
+                                    <option value="">Selecciona un avance</option>
+
+                                    {#each avancesDelTrabajo as avance}
+                                        <option value={String(avance.id_avance)}>
+                                            {avance.titulo ?? `Avance #${avance.id_avance}`}
+                                        </option>
+                                    {/each}
+                                </select>
+
+                                {#if formulario.id_trabajo_grado && avancesDelTrabajo.length === 0}
+                                    <small class="text-danger">
+                                        Este trabajo no tiene avances registrados.
+                                    </small>
+                                {/if}
                             </div>
 
                             <div class="col-md-6">
@@ -625,7 +702,7 @@
                         <button
                             type="submit"
                             class="btn btn-primary"
-                            disabled={guardando}
+                            disabled={guardando || avancesDelTrabajo.length === 0}
                         >
                             {#if guardando}
                                 <span class="spinner-border spinner-border-sm me-1"></span>

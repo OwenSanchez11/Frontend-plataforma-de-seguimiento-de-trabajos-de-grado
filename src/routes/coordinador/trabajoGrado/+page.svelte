@@ -1,4 +1,3 @@
-
 <script>
     import { onMount } from 'svelte';
     import {
@@ -9,6 +8,7 @@
         eliminarTrabajoGrado
     } from '$lib/api';
 
+    let filtroBusqueda = $state('');
     let filtroEstado = $state('');
     let filtroPrograma = $state('');
 
@@ -80,6 +80,14 @@
                 trabajo.estado_tramite ?? ''
             ).toLowerCase();
 
+            const titulo = (
+                trabajo.titulo ?? ''
+            ).toLowerCase();
+
+            const busqueda = filtroBusqueda.trim().toLowerCase();
+
+            const coincideBusqueda = titulo.includes(busqueda);
+
             const coincideEstado =
                 !filtroEstado || estado === filtroEstado;
 
@@ -87,7 +95,11 @@
                 !filtroPrograma ||
                 String(trabajo.id_carrera) === filtroPrograma;
 
-            return coincideEstado && coincidePrograma;
+            return (
+                coincideBusqueda &&
+                coincideEstado &&
+                coincidePrograma
+            );
         })
     );
 
@@ -108,6 +120,7 @@
             estado: true
         };
 
+        error = '';
         mensaje = '';
         mostrarFormulario = true;
     }
@@ -131,6 +144,7 @@
             estado: trabajo.estado ?? true
         };
 
+        error = '';
         mensaje = '';
         mostrarFormulario = true;
     }
@@ -143,7 +157,9 @@
 
     function cerrarFormulario() {
         if (guardando) return;
+
         mostrarFormulario = false;
+        error = '';
     }
 
     async function guardarTrabajo() {
@@ -261,7 +277,21 @@
         <h6 class="fw-bold">Filtros</h6>
 
         <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-md-4">
+                <label class="form-label small" for="filtroBusqueda">
+                    Buscar trabajo
+                </label>
+
+                <input
+                    id="filtroBusqueda"
+                    type="text"
+                    class="form-control"
+                    placeholder="Buscar por título..."
+                    bind:value={filtroBusqueda}
+                />
+            </div>
+
+            <div class="col-md-4">
                 <label class="form-label small" for="filtroEstado">
                     Estado
                 </label>
@@ -285,9 +315,9 @@
                 </select>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label small" for="filtroPrograma">
-                    Programa
+                    Carrera
                 </label>
 
                 <select
@@ -295,7 +325,7 @@
                     class="form-select"
                     bind:value={filtroPrograma}
                 >
-                    <option value="">Todos</option>
+                    <option value="">Todas las carreras</option>
 
                     {#each carreras as carrera}
                         <option value={String(carrera.id_carrera)}>
@@ -311,7 +341,7 @@
 <section class="card mb-4">
     <div class="card-body">
         <h6 class="fw-bold">
-            Listado de trabajos de grado de su carrera
+            Listado de trabajos de grado de todas las carreras
         </h6>
 
         {#if cargando}
@@ -326,7 +356,7 @@
                     <thead>
                         <tr>
                             <th>Título</th>
-                            <th>Programa</th>
+                            <th>Carrera</th>
                             <th>Estado del trámite</th>
                             <th>Fecha de inicio</th>
                             <th class="text-end">Acciones</th>
@@ -349,7 +379,7 @@
                                 </td>
 
                                 <td>
-                                    {trabajo.fecha_inicio ?? 'Sin fecha'}
+                                    {normalizarFecha(trabajo.fecha_inicio) || 'Sin fecha'}
                                 </td>
 
                                 <td class="text-end">
@@ -393,10 +423,13 @@
     >
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
-                <form class="modal-form" onsubmit={(event) => {
-                    event.preventDefault();
-                    guardarTrabajo();
-                }}>
+                <form
+                    class="modal-form"
+                    onsubmit={(event) => {
+                        event.preventDefault();
+                        guardarTrabajo();
+                    }}
+                >
                     <div class="modal-header">
                         <h5 class="modal-title fw-bold" id="tituloModalTrabajo">
                             {modoEdicion
@@ -600,8 +633,6 @@
 {/if}
 
 <style>
-    /* The form wraps the header, body and footer, so it must pass the modal's
-       constrained height through to .modal-body for Bootstrap scrolling to work. */
     .modal-form {
         display: flex;
         flex: 1 1 auto;

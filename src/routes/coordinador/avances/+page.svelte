@@ -1,5 +1,7 @@
 <script>
     import { onMount } from 'svelte';
+    import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
+
     import {
         getAvances,
         getTrabajos,
@@ -9,24 +11,36 @@
         eliminarAvance
     } from '$lib/api.js';
 
+    // FILTROS
     let filtroTrabajo = $state('');
     let filtroEstudiante = $state('');
     let filtroFase = $state('');
 
+    // DATOS
     let historialAvance = $state([]);
     let trabajos = $state([]);
     let usuarios = $state([]);
 
+    // MODALES
     let avanceSeleccionado = $state(null);
     let avanceEdicion = $state(null);
+    let modalFormulario = $state(false);
 
+    // ESTADOS
     let cargando = $state(true);
     let guardando = $state(false);
     let errorCarga = $state('');
     let mensaje = $state('');
 
-    let modalFormulario = $state(false);
+    // VALORES PERMITIDOS POR NEON
+    const dictamenesPermitidos = [
+        'en progreso',
+        'en revisión',
+        'aprobado',
+        'no aprobado'
+    ];
 
+    // FORMULARIO
     let formulario = $state({
         id_trabajo_grado: '',
         subido_por: '',
@@ -39,6 +53,7 @@
         estado: true
     });
 
+    // NORMALIZAR RESPUESTAS
     function obtenerLista(respuesta) {
         if (Array.isArray(respuesta)) return respuesta;
         if (Array.isArray(respuesta?.data)) return respuesta.data;
@@ -46,6 +61,7 @@
         return [];
     }
 
+    // OBTENER NOMBRE DEL USUARIO
     function obtenerNombreUsuario(idUsuario) {
         const usuario = usuarios.find(
             (item) => Number(item.id_user) === Number(idUsuario)
@@ -60,6 +76,7 @@
             || `Usuario ${idUsuario}`;
     }
 
+    // TRANSFORMAR DATOS
     function transformarAvance(avance) {
         const trabajo = trabajos.find(
             (item) =>
@@ -71,7 +88,7 @@
             ...avance,
             estudiante: obtenerNombreUsuario(avance.subido_por),
             trabajo: trabajo?.titulo ?? 'Trabajo no encontrado',
-            fase: avance.dictamen || avance.estado_tramite || 'Sin especificar',
+            fase: avance.dictamen || 'Sin especificar',
             descripcion: avance.descripcion || avance.titulo || 'Sin descripción',
             fecha: avance.fecha_entrega
                 ? String(avance.fecha_entrega).slice(0, 10)
@@ -81,6 +98,7 @@
         };
     }
 
+    // CARGAR INFORMACIÓN
     async function cargarDatos() {
         cargando = true;
         errorCarga = '';
@@ -96,7 +114,10 @@
             trabajos = obtenerLista(datosTrabajos);
             usuarios = obtenerLista(datosUsuarios);
 
-            historialAvance = obtenerLista(datosAvances).map(transformarAvance);
+            historialAvance = obtenerLista(datosAvances).map(
+                transformarAvance
+            );
+
         } catch (error) {
             console.error('Error al cargar los avances:', error);
             errorCarga = error.message || 'No fue posible cargar los avances.';
@@ -109,6 +130,7 @@
         cargarDatos();
     });
 
+    // FILTROS DERIVADOS
     let trabajosFiltrados = $derived(
         trabajos.filter((trabajo) =>
             historialAvance.some(
@@ -133,14 +155,106 @@
                 String(avance.id_trabajo_grado) === filtroTrabajo) &&
             (!filtroEstudiante ||
                 avance.estudiante === filtroEstudiante) &&
-            (!filtroFase || avance.fase === filtroFase)
+            (!filtroFase ||
+                avance.fase === filtroFase)
         )
     );
 
+    // ESCAPAR HTML
+    function escaparHtml(valor) {
+        return String(valor ?? '').replace(/[&<>"']/g, (caracter) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[caracter]);
+    }
+
+    // FILAS PARA DATATABLE
+    let filasAvances = $derived(
+        avancesFiltrados.map((avance) => ({
+            ...avance,
+            estudianteHtml: escaparHtml(avance.estudiante),
+            trabajoHtml: escaparHtml(avance.trabajo),
+            faseHtml: escaparHtml(avance.fase),
+            descripcionHtml: escaparHtml(avance.descripcion),
+            fechaHtml: escaparHtml(avance.fecha),
+
+            accionesHtml: `
+                <div class="d-flex gap-2">
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-info"
+                        title="Ver detalles"
+                        data-accion="ver"
+                        data-id="${avance.id_avance}">
+                        <i class="bi bi-eye"></i>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        title="Editar avance"
+                        data-accion="editar"
+                        data-id="${avance.id_avance}">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        title="Eliminar avance"
+                        data-accion="eliminar"
+                        data-id="${avance.id_avance}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `
+        }))
+    );
+
+    const columnasAvances = [
+        { title: 'Estudiante', data: 'estudianteHtml' },
+        { title: 'Trabajo de grado', data: 'trabajoHtml' },
+        { title: 'Fase', data: 'faseHtml' },
+        { title: 'Descripción', data: 'descripcionHtml' },
+        { title: 'Fecha', data: 'fechaHtml' },
+        {
+            title: 'Acciones',
+            data: 'accionesHtml',
+            orderable: false,
+            searchable: false
+        }
+    ];
+
+    // ACCIONES DE DATATABLE
+    function manejarAccionTabla(accion, id) {
+        const avance = historialAvance.find(
+            (item) => String(item.id_avance) === String(id)
+        );
+
+        if (!avance) return;
+
+        if (accion === 'ver') {
+            verDetalles(avance);
+        }
+
+        if (accion === 'editar') {
+            abrirEditar(avance);
+        }
+
+        if (accion === 'eliminar') {
+            eliminarRegistro(avance);
+        }
+    }
+
+    // VER DETALLES
     function verDetalles(avance) {
         avanceSeleccionado = avance;
     }
 
+    // ABRIR FORMULARIO PARA CREAR
     function abrirCrear() {
         avanceEdicion = null;
         errorCarga = '';
@@ -161,6 +275,7 @@
         modalFormulario = true;
     }
 
+    // ABRIR FORMULARIO PARA EDITAR
     function abrirEditar(avance) {
         avanceEdicion = avance;
         avanceSeleccionado = null;
@@ -186,11 +301,13 @@
         modalFormulario = true;
     }
 
+    // CERRAR FORMULARIO
     function cerrarFormulario() {
         if (guardando) return;
         modalFormulario = false;
     }
 
+    // GUARDAR AVANCE
     async function guardarAvance(evento) {
         evento.preventDefault();
 
@@ -202,9 +319,10 @@
             !formulario.subido_por ||
             !formulario.titulo.trim() ||
             !formulario.descripcion.trim() ||
-            !formulario.fecha_entrega
+            !formulario.fecha_entrega ||
+            !dictamenesPermitidos.includes(formulario.dictamen)
         ) {
-            errorCarga = 'Completa todos los campos obligatorios.';
+            errorCarga = 'Completa todos los campos obligatorios y selecciona un dictamen válido.';
             return;
         }
 
@@ -213,7 +331,7 @@
             subido_por: Number(formulario.subido_por),
             titulo: formulario.titulo.trim(),
             descripcion: formulario.descripcion.trim(),
-            dictamen: formulario.dictamen.trim() || null,
+            dictamen: formulario.dictamen,
             fecha_entrega: formulario.fecha_entrega,
             nombre_archivo: formulario.nombre_archivo.trim() || null,
             numero_version: Number(formulario.numero_version) || 1,
@@ -233,6 +351,7 @@
 
             modalFormulario = false;
             await cargarDatos();
+
         } catch (error) {
             console.error('Error al guardar el avance:', error);
             errorCarga = error.message || 'No fue posible guardar el avance.';
@@ -241,6 +360,7 @@
         }
     }
 
+    // ELIMINAR AVANCE
     async function eliminarRegistro(avance) {
         const confirmar = window.confirm(
             `¿Deseas eliminar el avance "${avance.titulo || avance.descripcion}"?`
@@ -253,9 +373,12 @@
 
         try {
             await eliminarAvance(avance.id_avance);
+
             mensaje = 'Avance eliminado correctamente.';
             avanceSeleccionado = null;
+
             await cargarDatos();
+
         } catch (error) {
             console.error('Error al eliminar el avance:', error);
             errorCarga = error.message || 'No fue posible eliminar el avance.';
@@ -263,6 +386,7 @@
     }
 </script>
 
+<!-- FILTROS -->
 <section class="card mb-4">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -319,7 +443,7 @@
 
             <div class="col-md-4">
                 <label for="filtro-fase" class="form-label small">
-                    Fase
+                    Fase / dictamen
                 </label>
 
                 <select
@@ -338,6 +462,7 @@
     </div>
 </section>
 
+<!-- MENSAJES -->
 {#if mensaje}
     <div class="alert alert-success" role="status">
         {mensaje}
@@ -350,6 +475,7 @@
     </div>
 {/if}
 
+<!-- TABLA DE AVANCES -->
 <section class="card mb-4">
     <div class="card-body">
         <h6 class="fw-bold">
@@ -360,74 +486,17 @@
             <p class="text-muted mb-0">Cargando avances...</p>
         {:else}
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th>Estudiante</th>
-                            <th>Trabajo de grado</th>
-                            <th>Fase</th>
-                            <th>Descripción</th>
-                            <th>Fecha</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {#each avancesFiltrados as avance (avance.id_avance)}
-                            <tr>
-                                <td>{avance.estudiante}</td>
-                                <td>{avance.trabajo}</td>
-                                <td>{avance.fase}</td>
-                                <td>{avance.descripcion}</td>
-                                <td>{avance.fecha}</td>
-                                <td>
-                                    <div class="d-flex gap-2">
-                                        <button
-                                            type="button"
-                                            class="btn btn-sm btn-outline-info"
-                                            title="Ver detalles"
-                                            aria-label="Ver detalles"
-                                            onclick={() => verDetalles(avance)}
-                                        >
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            class="btn btn-sm btn-outline-primary"
-                                            title="Editar avance"
-                                            aria-label="Editar avance"
-                                            onclick={() => abrirEditar(avance)}
-                                        >
-                                            <i class="bi bi-pencil-square"></i>
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            class="btn btn-sm btn-outline-danger"
-                                            title="Eliminar avance"
-                                            aria-label="Eliminar avance"
-                                            onclick={() => eliminarRegistro(avance)}
-                                        >
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        {:else}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">
-                                    No hay avances que coincidan con los filtros.
-                                </td>
-                            </tr>
-                        {/each}
-                    </tbody>
-                </table>
+                <DataTableWrapper
+                    columnas={columnasAvances}
+                    filas={filasAvances}
+                    onAccion={manejarAccionTabla}
+                />
             </div>
         {/if}
     </div>
 </section>
 
+<!-- MODAL VER DETALLES -->
 {#if avanceSeleccionado}
     <div
         class="modal d-block"
@@ -455,7 +524,7 @@
                 <div class="modal-body">
                     <p><strong>Estudiante:</strong> {avanceSeleccionado.estudiante}</p>
                     <p><strong>Trabajo de grado:</strong> {avanceSeleccionado.trabajo}</p>
-                    <p><strong>Fase:</strong> {avanceSeleccionado.fase}</p>
+                    <p><strong>Fase / dictamen:</strong> {avanceSeleccionado.fase}</p>
                     <p><strong>Descripción:</strong> {avanceSeleccionado.descripcion}</p>
                     <p><strong>Fecha:</strong> {avanceSeleccionado.fecha}</p>
                     <p><strong>Archivo:</strong> {avanceSeleccionado.nombre_archivo || 'Sin archivo registrado'}</p>
@@ -476,6 +545,7 @@
     </div>
 {/if}
 
+<!-- MODAL CREAR / EDITAR -->
 {#if modalFormulario}
     <div
         class="modal d-block"
@@ -596,16 +666,22 @@
 
                             <div class="col-md-6">
                                 <label for="fase-avance" class="form-label">
-                                    Fase / dictamen
+                                    Fase / dictamen *
                                 </label>
 
-                                <input
+                                <select
                                     id="fase-avance"
-                                    type="text"
-                                    class="form-control"
+                                    class="form-select"
                                     bind:value={formulario.dictamen}
-                                    placeholder="Ej. Anteproyecto"
-                                />
+                                    required
+                                >
+                                    <option value="">Selecciona un dictamen</option>
+
+                                    <option value="en progreso">En progreso</option>
+                                    <option value="en revisión">En revisión</option>
+                                    <option value="aprobado">Aprobado</option>
+                                    <option value="no aprobado">No aprobado</option>
+                                </select>
                             </div>
 
                             <div class="col-md-6">
