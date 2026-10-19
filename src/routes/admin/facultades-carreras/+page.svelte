@@ -333,9 +333,6 @@
 
 </script>
 
-<svelte:head>
-    <title>Facultades y Carreras</title>
-</svelte:head>
 
 <div class="container-fluid py-3">
 

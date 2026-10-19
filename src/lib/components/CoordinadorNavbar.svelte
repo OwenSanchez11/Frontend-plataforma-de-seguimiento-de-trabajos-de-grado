@@ -1,5 +1,6 @@
 <script>
     import { page } from '$app/stores';
+    import { sesion, cerrarSesion } from '$lib/sesion.svelte.js';
 
 	let menuAbierto = $state(false);
 	let busqueda = $state('');
@@ -21,11 +22,15 @@
     ];
 
 
-	let usuario = {
-		nombre: 'Owen Sanchez',
-		carrera: 'Ing. Sistemas y computación',
-		periodo: '2025-II'
-	};
+	let nombre = $derived(
+		[sesion.usuario?.nombre, sesion.usuario?.apellido].filter(Boolean).join(' ') ||
+		sesion.usuario?.username ||
+		sesion.usuario?.email ||
+		'Coordinador'
+	);
+	let iniciales = $derived(
+		nombre.split(/\s+/).filter(Boolean).slice(0, 2).map(parte => parte[0]).join('').toUpperCase()
+	);
 
 	function buscar(e) {
 		e.preventDefault();
@@ -53,14 +58,14 @@
 				href="/login"
 				class="d-flex align-items-center gap-2 text-decoration-none p-1.5 rounded-3 profile-hover transition-all"
 				title="Cerrar sesión o Cambiar de usuario"
-				onclick={cerrarMenu}
+				onclick={() => { cerrarSesion(); cerrarMenu(); }}
 			>
 				<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold extra-small flex-shrink-0" style="width: 32px; height: 32px;">
-					OS
+					{iniciales}
 				</div>
 				<div class="lh-1 min-w-0 d-none d-sm-block">
-					<span class="fw-bold text-dark d-block extra-small text-truncate">{usuario.nombre}</span>
-					<span class="extra-small text-muted">{usuario.carrera}</span>
+					<span class="fw-bold text-dark d-block extra-small text-truncate">{nombre}</span>
+					<span class="extra-small text-muted">{sesion.usuario?.carrera ?? sesion.usuario?.rol ?? 'Coordinador'}</span>
 				</div>
 				<i class="bi bi-box-arrow-right text-muted extra-small d-none d-sm-inline"></i>
 			</a>
