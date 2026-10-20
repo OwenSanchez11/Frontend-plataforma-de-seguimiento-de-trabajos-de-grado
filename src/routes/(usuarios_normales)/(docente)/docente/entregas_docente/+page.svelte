@@ -9,7 +9,6 @@
   let busqueda = $state('');
   let filtroEstado = $state('');
   let seleccionado = $state(null);
-  let dictamenTexto = $state('');
   let nuevoEstado = $state('');
   let cargando = $state(true);
   let guardando = $state(false);
@@ -24,13 +23,9 @@
   }
 
   function separarDictamen(dictamen, fechaEntrega) {
-    const texto = String(dictamen ?? '');
-    const match = texto.match(/^(Pendiente|En revisión|Aprobado|Requiere ajustes)(?:\s*—\s*|\s*:\s*|\s*\n)?/i);
-    if (match) {
-      const estado = ESTADOS.find((item) => item.toLowerCase() === match[1].toLowerCase()) ?? match[1];
-      return { estado, comentario: texto.slice(match[0].length).trim() };
-    }
-    return { estado: fechaEntrega ? 'En revisión' : 'Pendiente', comentario: texto };
+    const valor = String(dictamen ?? '').trim().toLocaleLowerCase('es-CO');
+    const estado = ESTADOS.find((item) => item.toLocaleLowerCase('es-CO') === valor);
+    return { estado: estado ?? (fechaEntrega ? 'En revisión' : 'Pendiente') };
   }
 
   async function cargarAvances() {
@@ -125,7 +120,6 @@
 
   function abrirModal(avance) {
     seleccionado = avance;
-    dictamenTexto = avance.comentarioRevision;
     nuevoEstado = avance.estado;
     error = '';
   }
@@ -138,8 +132,7 @@
     if (!seleccionado || guardando) return;
     guardando = true;
     error = '';
-    const comentario = dictamenTexto.trim();
-    const dictamen = comentario ? `${nuevoEstado} — ${comentario}` : nuevoEstado;
+    const dictamen = nuevoEstado.toLocaleLowerCase('es-CO');
     try {
       await editarAvance(seleccionado.id_avance, {
         id_trabajo_grado: Number(seleccionado.id_trabajo_grado),
@@ -157,7 +150,7 @@
         dictamen
       });
       avances = avances.map((avance) => avance.id_avance === seleccionado.id_avance
-        ? { ...avance, dictamen, estado: nuevoEstado, comentarioRevision: comentario }
+        ? { ...avance, dictamen, estado: nuevoEstado }
         : avance);
       seleccionado = null;
     } catch (e) {
@@ -262,10 +255,8 @@
               {#each ESTADOS as e}<option value={e}>{e}</option>{/each}
             </select>
           </div>
-          <div class="mb-2">
-            <label class="form-label" for="dictamen">Observaciones</label>
-            <textarea id="dictamen" class="form-control" rows="4" bind:value={dictamenTexto}
-              placeholder="Escribe la retroalimentación para el estudiante..."></textarea>
+          <div class="alert alert-info mb-0" role="note">
+            El dictamen guarda únicamente el estado seleccionado.
           </div>
         </div>
 

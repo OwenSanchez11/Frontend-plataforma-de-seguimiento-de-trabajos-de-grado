@@ -1,6 +1,6 @@
 <script>
   import {onMount} from 'svelte';
-  import {getRoles, getModulos, getModulosRol, crearRol, editarRol, eliminarRol} from '$lib/api';
+  import {getRoles, getModulos, getModulosRol, crearRol, editarRol, eliminarRol, crearModuloRol, editarModuloRol, eliminarModuloRol} from '$lib/api';
   import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
 
 
@@ -44,11 +44,13 @@
 
   let rolesConModulos = $derived(
     roles.map((r) => {
-      const idsModulos = modulosRol.filter((mr) => mr.id_rol === r.id_rol).map((mr) => mr.id_modulo);
+      const idsModulos = modulosRol
+        .filter((mr) => String(mr.id_rol) === String(r.id_rol) && mr.estado !== false)
+        .map((mr) => String(mr.id_modulo));
 
       return {
         ...r,
-        modulos: modulos.filter((m) => idsModulos.includes(m.id_modulo))
+        modulos: modulos.filter((m) => idsModulos.includes(String(m.id_modulo)))
       };
     })
   );
@@ -70,6 +72,7 @@
       await editarRol(id_rol, {
         rol_nombre: rol.rol_nombre,
         estado: nuevoEstado,
+        ambito: rol.ambito ?? 'SISTEMA',
         modulos: rol.modulos.map((modulo) => modulo.id_modulo)
       });
       roles = roles.map((r) =>
@@ -134,11 +137,11 @@
   // Modal crear / editar 
   let modalFormAbierto = $state(false);
   let rolEditando = $state(null); // null = creando, objeto = editando
-  let form = $state({ rol_nombre: '', estado: true, modulos: [] });
+  let form = $state({ rol_nombre: '', estado: true, ambito: 'SISTEMA', modulos: [] });
 
   function abrirCrear() {
     rolEditando = null;
-    form = { rol_nombre: '', estado: true, modulos: [] };
+    form = { rol_nombre: '', estado: true, ambito: 'SISTEMA', modulos: [] };
     errorFormulario = '';
     modalFormAbierto = true;
   }
@@ -148,6 +151,7 @@
     form = {
       rol_nombre: rol.rol_nombre,
       estado: rol.estado,
+      ambito: rol.ambito ?? 'SISTEMA',
       modulos: rol.modulos.map((m) => m.id_modulo)
     };
     errorFormulario = '';
@@ -158,6 +162,39 @@
     modalFormAbierto = false;
     rolEditando = null;
     errorFormulario = '';
+  }
+
+  async function sincronizarModulosRol(idRol, idsSeleccionados) {
+    const asignaciones = await getModulosRol();
+    const actuales = asignaciones.filter((item) => String(item.id_rol) === String(idRol));
+    const seleccionados = new Set(idsSeleccionados.map(String));
+
+    for (const asignacion of actuales) {
+      const sigueAsignado = seleccionados.has(String(asignacion.id_modulo));
+      if (!sigueAsignado && asignacion.estado !== false) {
+        await eliminarModuloRol(asignacion.id_modulo_rol);
+      } else if (sigueAsignado && asignacion.estado === false) {
+        await editarModuloRol(asignacion.id_modulo_rol, { estado: true });
+      }
+    }
+
+    const idsExistentes = new Set(actuales.map((item) => String(item.id_modulo)));
+    for (const idModulo of seleccionados) {
+      if (!idsExistentes.has(idModulo)) {
+        const resultado = await crearModuloRol({
+          id_rol: Number(idRol),
+          id_modulo: Number(idModulo),
+          puede_leer: true,
+          puede_crear: true,
+          puede_editar: true,
+          puede_eliminar: true,
+          estado: true
+        });
+        if (!resultado || resultado.error) {
+          throw new Error(resultado?.error ?? `El backend no confirmó la asignación del módulo ${idModulo}.`);
+        }
+      }
+    }
   }
 
   async function guardarRol() {
@@ -173,14 +210,19 @@
       const payload = {
         rol_nombre: form.rol_nombre.trim(),
         estado: form.estado,
+        ambito: form.ambito,
         modulos: form.modulos // ids de módulos -> tabla modulo_rol
       };
 
+      let idRol;
       if (rolEditando) {
-        await editarRol(rolEditando.id_rol, payload);
+        idRol = rolEditando.id_rol;
+        await editarRol(idRol, payload);
       } else {
-        await crearRol(payload);
+        const creado = await crearRol(payload);
+        idRol = creado.id_rol;
       }
+      await sincronizarModulosRol(idRol, form.modulos);
 
       // recargar para ver los cambios reflejados desde la BD
       const [nuevosRoles, nuevosModulosRol] = await Promise.all([getRoles(), getModulosRol()]);
@@ -355,6 +397,14 @@
             bind:value={form.rol_nombre}
             disabled={guardando}
           />
+        </div>
+
+        <div class="mb-3">
+          <label for="rol-ambito" class="form-label small fw-semibold">Ámbito</label>
+          <select id="rol-ambito" class="form-select" bind:value={form.ambito} disabled={guardando} required>
+            <option value="SISTEMA">Sistema</option>
+            <option value="PROYECTO">Proyecto</option>
+          </select>
         </div>
 
         <div class="mb-3">

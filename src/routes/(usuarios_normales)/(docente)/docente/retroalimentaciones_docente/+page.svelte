@@ -18,6 +18,7 @@
   // Modal crear/editar
   let modalAbierto = $state(false);
   let editando = $state(null); // retroalimentación en edición (null = nueva)
+  let respondiendoA = $state(null);
   let formAvance = $state('');
   let formComentario = $state('');
 
@@ -106,13 +107,14 @@
     ...r,
     estado: `<span class="badge text-bg-${colorEstado(r.estado)}">${r.estado}</span>`,
     fecha: formatearFecha(r.created_at),
-    acciones: r.es_mio ? `<button class="btn btn-sm btn-outline-primary" data-accion="editar" data-id="${r.id_retroalimentacion}">Editar</button>` : '—'
+    acciones: `<div class="d-flex gap-1"><button class="btn btn-sm btn-outline-success" data-accion="responder" data-id="${r.id_retroalimentacion}">Responder</button>${r.es_mio ? `<button class="btn btn-sm btn-outline-primary" data-accion="editar" data-id="${r.id_retroalimentacion}">Editar</button>` : ''}</div>`
   })));
 
   function manejarAccion(accion, id) {
-    if (accion !== 'editar') return;
     const retroalimentacion = retroalimentaciones.find((r) => String(r.id_retroalimentacion) === String(id));
-    if (retroalimentacion) abrirEditar(retroalimentacion);
+    if (!retroalimentacion) return;
+    if (accion === 'editar' && retroalimentacion.es_mio) abrirEditar(retroalimentacion);
+    if (accion === 'responder') abrirRespuesta(retroalimentacion);
   }
 
   let total = $derived(retroalimentaciones.length);
@@ -133,6 +135,7 @@
 
   function abrirNueva() {
     editando = null;
+    respondiendoA = null;
     formAvance = '';
     formComentario = '';
     modalAbierto = true;
@@ -140,8 +143,18 @@
 
   function abrirEditar(r) {
     editando = r;
+    respondiendoA = null;
     formAvance = String(r.id_avance);
     formComentario = r.comentario;
+    modalAbierto = true;
+  }
+
+  function abrirRespuesta(r) {
+    editando = null;
+    respondiendoA = r;
+    formAvance = String(r.id_avance);
+    formComentario = '';
+    error = '';
     modalAbierto = true;
   }
 
@@ -262,15 +275,21 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">{editando ? 'Editar retroalimentación' : 'Nueva retroalimentación'}</h5>
+          <h5 class="modal-title">{editando ? 'Editar retroalimentación' : respondiendoA ? 'Responder retroalimentación' : 'Nueva retroalimentación'}</h5>
           <button class="btn-close" aria-label="Cerrar" onclick={cerrarModal}></button>
         </div>
 
         <div class="modal-body">
           {#if error}<div class="alert alert-danger" role="alert">{error}</div>{/if}
+          {#if respondiendoA}
+            <div class="alert alert-light border">
+              <div class="small text-muted mb-1">Respuesta a {respondiendoA.autor} · {respondiendoA.estudiante}</div>
+              <div>{respondiendoA.comentario}</div>
+            </div>
+          {/if}
           <div class="mb-3">
             <label class="form-label" for="avance">Avance</label>
-            <select id="avance" class="form-select" bind:value={formAvance} disabled={!!editando}>
+            <select id="avance" class="form-select" bind:value={formAvance} disabled={!!editando || !!respondiendoA}>
               <option value="">Selecciona un avance...</option>
               {#each avancesDisponibles as a (a.id_avance)}
                 <option value={String(a.id_avance)}>{a.titulo} — {a.estudiante}</option>
@@ -280,13 +299,13 @@
           <div class="mb-2">
             <label class="form-label" for="comentario">Comentario</label>
             <textarea id="comentario" class="form-control" rows="5" bind:value={formComentario}
-              placeholder="Escribe tu retroalimentación..."></textarea>
+              placeholder={respondiendoA ? 'Escribe tu respuesta...' : 'Escribe tu retroalimentación...'}></textarea>
           </div>
         </div>
 
         <div class="modal-footer">
           <button class="btn btn-light" onclick={cerrarModal} disabled={guardando}>Cancelar</button>
-          <button class="btn btn-primary" onclick={guardar} disabled={!formValido || guardando}>{guardando ? 'Guardando...' : 'Guardar'}</button>
+          <button class="btn btn-primary" onclick={guardar} disabled={!formValido || guardando}>{guardando ? 'Guardando...' : respondiendoA ? 'Guardar respuesta' : 'Guardar'}</button>
         </div>
       </div>
     </div>
