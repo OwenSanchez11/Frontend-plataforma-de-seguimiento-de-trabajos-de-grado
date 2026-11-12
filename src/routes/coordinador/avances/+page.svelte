@@ -485,13 +485,11 @@
         {#if cargando}
             <p class="text-muted mb-0">Cargando avances...</p>
         {:else}
-            <div class="table-responsive">
-                <DataTableWrapper
-                    columnas={columnasAvances}
-                    filas={filasAvances}
-                    onAccion={manejarAccionTabla}
-                />
-            </div>
+            <DataTableWrapper
+                columnas={columnasAvances}
+                filas={filasAvances}
+                onAccion={manejarAccionTabla}
+            />
         {/if}
     </div>
 </section>

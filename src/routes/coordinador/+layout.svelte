@@ -10,7 +10,7 @@
 	<CoordinadorNavbar />
 
 	<div class="d-flex bg-light min-vh-100 position-relative">
-		<main class="flex-grow-1 p-3 p-md-4 overflow-x-hidden">
+		<main class="flex-grow-1 p-3 p-md-4 overflow-x-hidden" style="min-width: 0;">
 			{@render children()}
 		</main>
 	</div>

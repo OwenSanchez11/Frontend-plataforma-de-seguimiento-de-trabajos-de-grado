@@ -54,4 +54,10 @@ $effect(() => {
 
 </script>
 
-<table bind:this={tablaEl} class="table table-striped table-hover align-middle mb-0" style="width:100%"></table>
+<div class="table-responsive w-100" style="-webkit-overflow-scrolling: touch;">
+  <table
+    bind:this={tablaEl}
+    class="table table-striped table-hover align-middle mb-0"
+    style="width:100%; min-width: 720px;"
+  ></table>
+</div>

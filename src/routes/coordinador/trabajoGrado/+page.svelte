@@ -637,8 +637,8 @@
 
         {:else}
 
-            <div class="table-responsive">
-                <table class="table table-hover align-middle datatable">
+            <div class="table-responsive w-100" style="-webkit-overflow-scrolling: touch;">
+                <table class="table table-hover align-middle datatable" style="min-width: 900px;">
                     <thead class="table-light">
                         <tr>
                             <th>

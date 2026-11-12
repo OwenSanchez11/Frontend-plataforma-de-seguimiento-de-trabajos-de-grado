@@ -796,8 +796,8 @@
                 {#if cargandoEquipo}
                     <p class="text-muted mb-0">Cargando integrantes asignados...</p>
                 {:else}
-                    <div class="table-responsive">
-                    <table class="table table-hover align-middle">
+                    <div class="table-responsive w-100" style="-webkit-overflow-scrolling: touch;">
+                    <table class="table table-hover align-middle" style="min-width: 760px;">
                         <thead>
                             <tr>
                                 <th>Nombre</th>
