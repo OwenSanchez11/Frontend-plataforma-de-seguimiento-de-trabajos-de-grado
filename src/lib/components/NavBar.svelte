@@ -1,11 +1,13 @@
 <script>
 	import { sesion, cerrarSesion } from '$lib/sesion.svelte.js';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 
 	let esEstudiante = $derived(sesion.usuario?.rol === 'estudiante');
 	let esDocente = $derived(sesion.usuario?.rol === 'docente');
 	let menuAbierto = $state(false);
 	let busqueda = $state('');
+	let desconectando = $state(false);
 	let nombre = $derived(sesion.usuario?.nombre ?? '');
 
 	let iniciales = $derived(
@@ -20,6 +22,17 @@
 
 	function cerrarMenu() {
 		menuAbierto = false;
+	}
+
+	function desconectar(e) {
+		e.preventDefault();
+		if (desconectando) return;
+		desconectando = true;
+		cerrarMenu();
+		setTimeout(() => {
+			cerrarSesion();
+			goto('/login');
+		}, 900);
 	}
 
 
@@ -74,7 +87,7 @@
 				href="/login"
 				class="d-flex align-items-center gap-2 text-decoration-none p-1.5 rounded-3 profile-hover transition-all"
 				title="Cerrar sesión o Cambiar de usuario"
-				onclick={() => { cerrarSesion(); cerrarMenu(); }}
+				onclick={desconectar}
 			>
 				<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold extra-small flex-shrink-0" style="width: 32px; height: 32px;">
 					{iniciales}
@@ -136,6 +149,15 @@
 	</div>
 </header>
 
+{#if desconectando}
+	<div class="logout-message" role="status" aria-live="polite">
+		<div class="logout-card">
+			<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+			<span>Desconectando usuario...</span>
+		</div>
+	</div>
+{/if}
+
 <style>
 	.extra-small {
 		font-size: 0.72rem;
@@ -152,6 +174,25 @@
 	}
 	.transition-all {
 		transition: all 0.2s ease-in-out;
+	}
+	.logout-message {
+		position: fixed;
+		inset: 0;
+		z-index: 2000;
+		display: grid;
+		place-items: center;
+		background: rgb(15 23 42 / 35%);
+	}
+	.logout-card {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 1rem 1.25rem;
+		background: white;
+		border-radius: 0.75rem;
+		color: #212529;
+		font-weight: 600;
+		box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 15%);
 	}
 
 	/* Colapsable propio (no depende de bootstrap.js) */

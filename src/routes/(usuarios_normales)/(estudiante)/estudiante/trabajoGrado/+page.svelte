@@ -3,7 +3,9 @@
 	import Banner from '$lib/components/Banner.svelte';
 	import {
 		getTrabajoPorEstudiante,
+		getEquiposPorTrabajo,
 		getAvancePorTrabajo,
+		crearAvance,
 		actualizarAvance,
 		crearRetroalimentacion
 	} from '$lib/api';
@@ -18,6 +20,13 @@
 	let error = $state('');
 	let errorAvances = $state('');
 	let sinTrabajo = $state(false);
+	let crearAvanceAbierto = $state(false);
+	let guardandoNuevoAvance = $state(false);
+	let errorNuevoAvance = $state('');
+	let mensajeNuevoAvance = $state('');
+	let nuevoTitulo = $state('');
+	let nuevaDescripcion = $state('');
+	let nuevoEnlace = $state('');
 
 	// Pestaña activa: 'resumen' o 'avances'
 	let pestana = $state('resumen');
@@ -49,8 +58,12 @@
 		[...conArchivo].sort((a, b) => new Date(b.fecha_entrega) - new Date(a.fecha_entrega))
 	);
 
-	// El texto debe ser idéntico al nombre en la tabla rol_proyecto
-	let director = $derived(integrantes.find((p) => p.rol_proyecto === 'Director'));
+	// El coordinador marca al director en observaciones de la asignación del equipo.
+	let director = $derived(
+		integrantes.find((p) =>
+			String(p.observaciones ?? p.rol_proyecto ?? '').trim().toLowerCase() === 'director'
+		)
+	);
 	// Comité = quienes tienen rol de proyecto (director y jurados)
 	let comite = $derived(integrantes.filter((p) => p.rol_proyecto));
 
@@ -79,6 +92,78 @@
 
 	function iniciales(p) {
 		return ((p.nombre?.[0] ?? '') + (p.apellido?.[0] ?? '')).toUpperCase();
+	}
+
+	function abrirCrearAvance() {
+		nuevoTitulo = '';
+		nuevaDescripcion = '';
+		nuevoEnlace = '';
+		errorNuevoAvance = '';
+		crearAvanceAbierto = true;
+	}
+
+	function cerrarCrearAvance() {
+		if (!guardandoNuevoAvance) crearAvanceAbierto = false;
+	}
+
+	async function guardarNuevoAvance(e) {
+		e.preventDefault();
+		errorNuevoAvance = '';
+		mensajeNuevoAvance = '';
+
+		const titulo = nuevoTitulo.trim();
+		const descripcion = nuevaDescripcion.trim();
+		const enlace = nuevoEnlace.trim();
+		if (!trabajoGrado || !sesion.usuario?.id_user || !titulo || !descripcion) {
+			errorNuevoAvance = 'Completa el título y la descripción del avance.';
+			return;
+		}
+		if (enlace && !/^https?:\/\//i.test(enlace)) {
+			errorNuevoAvance = 'El enlace debe comenzar con http:// o https://.';
+			return;
+		}
+
+		const fecha = new Date();
+		const fechaEntrega = [fecha.getFullYear(), String(fecha.getMonth() + 1).padStart(2, '0'), String(fecha.getDate()).padStart(2, '0')].join('-');
+		let nombreArchivo = null;
+		if (enlace) {
+			try {
+				nombreArchivo = decodeURIComponent(new URL(enlace).pathname.split('/').filter(Boolean).pop() ?? '') || null;
+			} catch {
+				nombreArchivo = null;
+			}
+		}
+
+		guardandoNuevoAvance = true;
+		try {
+			const avanceCreado = await crearAvance({
+				id_trabajo_grado: Number(trabajoGrado.id_trabajo_grado),
+				subido_por: Number(sesion.usuario.id_user),
+				titulo,
+				descripcion,
+				dictamen: 'en revisión',
+				fecha_entrega: fechaEntrega,
+				nombre_archivo: nombreArchivo,
+				ruta_archivo: enlace || null,
+				numero_version: 1,
+				tamano_bytes: 0,
+				estado: true
+			});
+
+			crearAvanceAbierto = false;
+			mensajeNuevoAvance = 'Tu avance se registró y quedó enviado para revisión.';
+			try {
+				const lista = await getAvancePorTrabajo(trabajoGrado.id_trabajo_grado);
+				avances = Array.isArray(lista) ? lista : lista?.data ?? lista?.items ?? [];
+			} catch (e) {
+				if (avanceCreado && typeof avanceCreado === 'object') avances = [...avances, avanceCreado];
+				console.warn('El avance se creó, pero no fue posible actualizar el listado:', e);
+			}
+		} catch (err) {
+			errorNuevoAvance = err.message || 'No fue posible registrar el avance.';
+		} finally {
+			guardandoNuevoAvance = false;
+		}
 	}
 
 	function claveLista(id, indice) {
@@ -191,6 +276,7 @@
 	function cerrarTodo() {
 		cerrarModal();
 		cerrarSolicitud();
+		cerrarCrearAvance();
 	}
 
 	async function enviarSolicitud(e) {
@@ -239,6 +325,29 @@
 
 			if (trabajoGrado) {
 				try {
+					// El endpoint del estudiante puede omitir observaciones; completar
+					// integrantes con la asignación del equipo, donde se guarda "Director".
+					try {
+						const respuestaEquipo = await getEquiposPorTrabajo(trabajoGrado.id_trabajo_grado);
+						const asignaciones = Array.isArray(respuestaEquipo)
+							? respuestaEquipo
+							: respuestaEquipo?.data ?? respuestaEquipo?.items ?? [];
+						const observacionesPorUsuario = new Map(
+							asignaciones.map((asignacion) => [
+								String(asignacion.id_usuario ?? asignacion.usuario?.id_user ?? ''),
+								asignacion.observaciones
+							])
+						);
+						integrantes = integrantes.map((persona) => {
+							const observacion = observacionesPorUsuario.get(
+								String(persona.id_user ?? persona.id_usuario ?? '')
+							);
+							return observacion ? { ...persona, observaciones: observacion } : persona;
+						});
+					} catch (e) {
+						console.warn('No fue posible cargar las observaciones del equipo:', e);
+					}
+
 					const lista = await getAvancePorTrabajo(trabajoGrado.id_trabajo_grado);
 					avances = Array.isArray(lista) ? lista : [];
 				} catch (e) {
@@ -273,7 +382,14 @@
 				<h1 class="h3 fw-bold text-dark mb-0">Mi trabajo de Grado</h1>
 			</div>
 			<div class="d-flex gap-2">
-	
+				<button
+					type="button"
+					class="btn btn-outline-primary btn-sm px-3 rounded-3 d-flex align-items-center gap-2"
+					onclick={abrirCrearAvance}
+					disabled={!trabajoGrado}
+				>
+					<i class="bi bi-plus-circle"></i>Crear avance
+				</button>
 				<button
 					class="btn btn-primary btn-sm px-3 rounded-3 d-flex align-items-center gap-2"
 					onclick={abrirSolicitud}
@@ -308,6 +424,9 @@
 					<span><i class="bi bi-check-circle me-2"></i>Solicitud enviada. Tu director y el coordinador podrán verla en Retroalimentaciones.</span>
 					<button type="button" class="btn-close" aria-label="Cerrar aviso" onclick={() => (solicitudOk = false)}></button>
 				</div>
+			{/if}
+			{#if mensajeNuevoAvance}
+				<div class="alert alert-success py-2 small" role="status">{mensajeNuevoAvance}</div>
 			{/if}
 
 			<!-- Pestañas -->
@@ -383,7 +502,7 @@
 										</div>
 									</td>
 									<td>
-										<span class="badge bg-light text-dark border fw-medium">{persona.rol_proyecto ?? 'Estudiante'}</span>
+										<span class="badge bg-light text-dark border fw-medium">{persona.observaciones ?? persona.rol_proyecto ?? 'Estudiante'}</span>
 									</td>
 									<td class="text-muted">{persona.correo}</td>
 									<td class="text-end">
@@ -458,9 +577,14 @@
 				{:else}
 				<!-- Pestaña Avances: registro general -->
 				<div class="card border-0 shadow-sm rounded-4 p-3 p-md-4 mb-4">
-					<h3 class="h6 fw-bold text-dark mb-3 d-flex align-items-center gap-2">
-						<i class="bi bi-list-check text-primary fs-5"></i> Registro General de Avances
-					</h3>
+					<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+						<h3 class="h6 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+							<i class="bi bi-list-check text-primary fs-5"></i> Registro General de Avances
+						</h3>
+						<button type="button" class="btn btn-sm btn-primary rounded-3" onclick={abrirCrearAvance}>
+							<i class="bi bi-plus-lg me-1"></i>Nuevo avance
+						</button>
+					</div>
 
 					<div class="table-responsive">
 						<table class="table table-hover align-middle mb-0">
@@ -550,6 +674,47 @@
 					</div>
 				</div>
 				{/if}
+			{/if}
+
+			<!-- Ventana para crear un avance propio -->
+			{#if crearAvanceAbierto}
+				<div class="modal d-block" role="dialog" aria-modal="true" aria-labelledby="titulo-nuevo-avance" tabindex="-1" style="background: rgba(0, 0, 0, 0.5);">
+					<div class="modal-dialog modal-dialog-centered">
+						<form class="modal-content border-0 rounded-4 shadow" onsubmit={guardarNuevoAvance}>
+							<div class="modal-header border-0 pb-0">
+								<div>
+									<h5 class="modal-title fw-bold" id="titulo-nuevo-avance">Crear avance</h5>
+									<p class="extra-small text-muted mb-0">Registra una actividad propia para tu trabajo de grado.</p>
+								</div>
+								<button type="button" class="btn-close" aria-label="Cerrar" onclick={cerrarCrearAvance} disabled={guardandoNuevoAvance}></button>
+							</div>
+							<div class="modal-body">
+								<div class="mb-3">
+									<label class="form-label small fw-semibold" for="nuevo-avance-titulo">Título *</label>
+									<input id="nuevo-avance-titulo" class="form-control" bind:value={nuevoTitulo} maxlength="160" required disabled={guardandoNuevoAvance} />
+								</div>
+								<div class="mb-3">
+									<label class="form-label small fw-semibold" for="nuevo-avance-descripcion">Descripción *</label>
+									<textarea id="nuevo-avance-descripcion" class="form-control" rows="4" bind:value={nuevaDescripcion} required disabled={guardandoNuevoAvance}></textarea>
+								</div>
+								<div class="mb-3">
+									<label class="form-label small fw-semibold" for="nuevo-avance-enlace">Enlace del documento (opcional)</label>
+									<input id="nuevo-avance-enlace" type="url" class="form-control" placeholder="https://..." bind:value={nuevoEnlace} disabled={guardandoNuevoAvance} />
+									<div class="form-text extra-small">La aplicación registra el enlace; no carga archivos directamente.</div>
+								</div>
+								{#if errorNuevoAvance}
+									<div class="alert alert-danger py-2 small mb-0" role="alert">{errorNuevoAvance}</div>
+								{/if}
+							</div>
+							<div class="modal-footer border-0 pt-0">
+								<button type="button" class="btn btn-sm btn-outline-secondary" onclick={cerrarCrearAvance} disabled={guardandoNuevoAvance}>Cancelar</button>
+								<button type="submit" class="btn btn-sm btn-primary" disabled={guardandoNuevoAvance}>
+									{#if guardandoNuevoAvance}<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Guardando...{:else}<i class="bi bi-send me-1"></i>Crear y enviar{/if}
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
 			{/if}
 
 			<!-- Ventana (modal) para cargar documento -->

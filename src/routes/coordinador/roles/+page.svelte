@@ -397,7 +397,7 @@
                     id_trabajo_grado: Number(trabajoSeleccionadoId),
                     id_usuario: Number(idUsuario),
                     id_rol: Number(obtenerUsuario(idUsuario)?.id_rol),
-                    observaciones: `Profesor ${i + 1}`,
+                    observaciones: i === 0 ? 'Director' : `Profesor ${i + 1}`,
                     fecha_asignacion:
                         existente?.fecha_asignacion ?? null,
                     fecha_finalizacion:

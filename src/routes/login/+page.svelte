@@ -9,6 +9,7 @@
     let mostrarPassword = $state(false);
     let errorLogin = $state('');
     let cargandoLogin = $state(false);
+    let logoDisponible = $state(true);
 
     const roles = {
         1: { nombre: 'administrador', ruta: '/admin' },
@@ -72,6 +73,25 @@
 
 <main class="login-wrapper d-flex align-items-center justify-content-center min-vh-100 bg-light p-3">
     <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 login-card">
+        <div class="institution-brand mb-4">
+            {#if logoDisponible}
+                <img
+                    src="/logo-universidad.png"
+                    alt="Logo de la universidad"
+                    class="university-logo"
+                    onerror={() => (logoDisponible = false)}
+                />
+            {:else}
+                <div class="logo-placeholder" aria-label="Espacio para el logo de la universidad">
+                    <i class="bi bi-mortarboard-fill" aria-hidden="true"></i>
+                </div>
+            {/if}
+            <div>
+                <div class="institution-name">Corporación Universitaria Latinoamericana - CUL</div>
+                <div class="product-name">GradosTrack</div>
+            </div>
+        </div>
+
         <div class="text-start mb-4">
             <h1 class="h3 fw-bold text-dark mb-1">Acceso al Sistema</h1>
             <p class="text-secondary small mb-0">
@@ -194,6 +214,44 @@
 
     .login-wrapper {
         min-height: 100vh;
+    }
+
+    .institution-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        padding-bottom: 1.25rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .university-logo,
+    .logo-placeholder {
+        width: 64px;
+        height: 64px;
+        flex: 0 0 64px;
+        object-fit: contain;
+    }
+
+    .logo-placeholder {
+        display: grid;
+        place-items: center;
+        border-radius: 0.75rem;
+        background: #eef4ff;
+        color: #0d6efd;
+        font-size: 1.8rem;
+    }
+
+    .institution-name {
+        color: #212529;
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1.25;
+    }
+
+    .product-name {
+        margin-top: 0.2rem;
+        color: #6c757d;
+        font-size: 0.8rem;
     }
 
     .input-group .form-control,
