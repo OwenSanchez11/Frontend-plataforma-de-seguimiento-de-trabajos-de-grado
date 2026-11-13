@@ -2,6 +2,7 @@
 	import { sesion, cerrarSesion } from '$lib/sesion.svelte.js';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import logoIcon from '../../../assets/icon-only.png';
 
 	let esEstudiante = $derived(sesion.usuario?.rol === 'estudiante');
 	let esDocente = $derived(sesion.usuario?.rol === 'docente');
@@ -75,7 +76,7 @@
 	<div class="container-fluid px-3 px-md-4 py-2 d-flex align-items-center justify-content-between">
 		<a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-primary mb-0" href="/" onclick={cerrarMenu}>
 			<div class="bg-primary text-white rounded-3 p-1.5 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
-				<i class="bi bi-mortarboard-fill"></i>
+				<img src={logoIcon} alt="" width="28" height="28" class="rounded-2 object-fit-contain" />
 			</div>
 			<span class="lh-sm">
 				<span class="d-block h6 fw-bold text-dark mb-0">GradosTrack</span>

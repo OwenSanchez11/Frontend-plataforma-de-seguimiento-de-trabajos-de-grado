@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { sesion, cerrarSesion } from '$lib/sesion.svelte.js';
 	import { goto } from '$app/navigation';
+	import logoIcon from '../../../assets/icon-only.png';
 
 	let menuAbierto = $state(false);
 	let desconectando = $state(false);
@@ -51,7 +52,7 @@
 				class="bg-primary text-white rounded-3 p-1.5 d-flex align-items-center justify-content-center"
 				style="width: 34px; height: 34px;"
 			>
-				<i class="bi bi-mortarboard-fill"></i>
+				<img src={logoIcon} alt="" width="28" height="28" class="rounded-2 object-fit-contain" />
 			</div>
 
 			<span class="lh-sm">
