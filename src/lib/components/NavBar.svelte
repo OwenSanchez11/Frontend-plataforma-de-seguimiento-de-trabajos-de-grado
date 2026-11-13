@@ -37,7 +37,7 @@
 
 
 	const menuComun = [
-		{ id: 'dashboard', name: 'Inicio', icon: 'bi-grid-1x2-fill', href: '/' }
+		{ id: 'dashboard', name: 'Inicio', icon: 'bi-grid-1x2-fill', href: '/' },
 	]
 
 	const menuEstudiante = [
@@ -83,12 +83,6 @@
 		</a>
 
 		<div class="d-flex align-items-center gap-2">
-			<a
-				href="/login"
-				class="d-flex align-items-center gap-2 text-decoration-none p-1.5 rounded-3 profile-hover transition-all"
-				title="Cerrar sesión o Cambiar de usuario"
-				onclick={desconectar}
-			>
 				<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold extra-small flex-shrink-0" style="width: 32px; height: 32px;">
 					{iniciales}
 				</div>
@@ -96,8 +90,6 @@
 					<span class="fw-bold text-dark d-block extra-small text-truncate">{nombre}</span>
 					<span class="extra-small text-muted">{subtitulo}</span>
 				</div>
-				<i class="bi bi-box-arrow-right text-muted extra-small d-none d-sm-inline"></i>
-			</a>
 
 			<button
 				class="border-0 p-1 bg-transparent text-dark fs-4 d-block d-xl-none"
@@ -128,6 +120,19 @@
 					</li>
 				{/each}
 
+				{#if esEstudiante || esDocente} 
+					<li class="nav-item ms-xl-auto">
+						<button
+							type="button"
+							class="nav-link px-2.5 py-2 rounded-3 extra-small fw-semibold d-flex align-items-center gap-2 transition-all text-danger border-0 bg-transparent w-100"
+							onclick={desconectar}
+							disabled={desconectando}
+						>
+							<i class="bi bi-box-arrow-right fs-6"></i>
+							<span>Cerrar sesión</span>
+						</button>
+					</li>
+				{/if}
 
 			</ul>
 
@@ -193,6 +198,11 @@
 		color: #212529;
 		font-weight: 600;
 		box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 15%);
+	}
+
+	.nav-link.text-danger:hover {
+		background-color: #fff5f5;
+		color: #dc3545 !important;
 	}
 
 	/* Colapsable propio (no depende de bootstrap.js) */

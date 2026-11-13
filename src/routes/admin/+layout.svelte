@@ -1,14 +1,10 @@
 <script>
-    import { page } from '$app/stores'; 
     import AdminNavbar from '$lib/components/AdminNavbar.svelte';
     import Footer from '$lib/components/Footer.svelte';
     import Guard from '$lib/components/Guard.svelte';
 
     let { children } = $props();
 
-    let sidebarOpen = $state(false);
-
-    let esLogin = $derived($page.url.pathname === '/login');
 </script>
 
 <Guard roles={['administrador']}>

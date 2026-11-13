@@ -4,11 +4,7 @@
 	import { goto } from '$app/navigation';
 
 	let menuAbierto = $state(false);
-	let busqueda = $state('');
 	let desconectando = $state(false);
-
-	// Detecta si estamos dentro del modo administrador
-	let esAdmin = $derived($page.url.pathname.startsWith('/admin'));
 
 	function toggleMenu() {
 		menuAbierto = !menuAbierto;
@@ -37,20 +33,9 @@
 		{ id: 'evaluaciones', name: 'Evaluaciones', icon: 'bi-clipboard-check', href: '/admin/evaluaciones' },
 	];
 
-	const menuProfesores = [
-		{ id: 'evaluaciones', name: 'Evaluaciones', icon: 'bi-book', href: '/evaluaciones' }
-	];
-
 	let nombre = $derived([sesion.usuario?.nombre, sesion.usuario?.apellido].filter(Boolean).join(' ') || sesion.usuario?.username || sesion.usuario?.email || 'Administrador');
 	let iniciales = $derived(nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((parte) => parte[0]).join('').toUpperCase());
 
-	function buscar(e) {
-		e.preventDefault();
-
-		if (!busqueda.trim()) return;
-
-		console.log('Buscando:', busqueda);
-	}
 </script>
 
 <header class="bg-white border-bottom sticky-top shadow-sm">
@@ -78,12 +63,6 @@
 
 		<div class="d-flex align-items-center gap-2">
 
-			<a
-				href="/login"
-				class="d-flex align-items-center gap-2 text-decoration-none p-1.5 rounded-3 profile-hover transition-all"
-				title="Cerrar sesión"
-				onclick={desconectar}
-			>
 				<div
 					class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold extra-small flex-shrink-0"
 					style="width: 32px; height: 32px;"
@@ -100,9 +79,6 @@
 						Administrador
 					</span>
 				</div>
-
-				<i class="bi bi-box-arrow-right text-muted extra-small d-none d-sm-inline"></i>
-			</a>
 
 			<button
 				class="border-0 p-1 bg-transparent text-dark fs-4 d-block d-xl-none"
@@ -143,61 +119,22 @@
 				{/each}
 
 
-				<!-- EVALUACIONES SOLO SE MUESTRA FUERA DEL MODO ADMIN -->
+				<li class="nav-item ms-xl-auto">
+					<button
+						type="button"
+						class="nav-link px-2.5 py-2 rounded-3 extra-small fw-semibold d-flex align-items-center gap-2 transition-all text-danger border-0 bg-transparent w-100"
+						onclick={desconectar}
+						disabled={desconectando}
+					>
+						<i class="bi bi-box-arrow-right fs-6"></i>
+						<span>Cerrar sesión</span>
+					</button>
+				</li>
 
-				{#if !esAdmin}
 
-					<li class="nav-item d-none d-xl-block mx-1 my-auto">
-						<div class="vr h-100 opacity-25"></div>
-					</li>
-
-					<li class="nav-item d-xl-none mt-2 pt-2 border-top">
-						<span class="extra-small text-muted fw-bold text-uppercase px-2 d-block mb-1">
-							Evaluaciones Docentes
-						</span>
-					</li>
-
-					{#each menuProfesores as item}
-						<li class="nav-item">
-							<a
-								class="nav-link px-2.5 py-2 rounded-3 extra-small fw-semibold d-flex align-items-center gap-2 transition-all {$page.url.pathname === item.href
-									? 'active bg-primary text-white'
-									: 'text-secondary hover-bg-light'}"
-								href={item.href}
-								onclick={cerrarMenu}
-							>
-								<i class="bi {item.icon} fs-6"></i>
-								<span>{item.name}</span>
-							</a>
-						</li>
-					{/each}
-
-				{/if}
 
 			</ul>
 
-
-			<form
-				class="d-flex flex-shrink-0"
-				style="max-width: 280px; width: 100%;"
-				onsubmit={buscar}
-			>
-				<div class="input-group input-group-sm">
-
-					<span class="input-group-text bg-light border-end-0 text-muted">
-						<i class="bi bi-search"></i>
-					</span>
-
-					<input
-						type="search"
-						class="form-control border-start-0 bg-light extra-small"
-						placeholder="Buscar..."
-						bind:value={busqueda}
-						aria-label="Buscar"
-					/>
-
-				</div>
-			</form>
 
 		</div>
 	</div>
@@ -221,14 +158,6 @@
 
 	.hover-bg-light:hover {
 		background-color: #f8f9fa;
-		color: #0d6efd !important;
-	}
-
-	.profile-hover:hover {
-		background-color: #f8f9fa;
-	}
-
-	.profile-hover:hover span.text-dark {
 		color: #0d6efd !important;
 	}
 
