@@ -1,12 +1,14 @@
 <script>
 	import { onMount } from 'svelte';
 	import Banner from '$lib/components/Banner.svelte';
+	import DescargaEntregable from '$lib/components/DescargaEntregable.svelte';
 	import {
 		getTrabajoPorEstudiante,
 		getEquiposPorTrabajo,
 		getAvancePorTrabajo,
 		crearAvance,
-		actualizarAvance,
+		crearAvanceConArchivo,
+		subirEntregable,
 		crearRetroalimentacion
 	} from '$lib/api';
 	import { sesion } from '$lib/sesion.svelte';
@@ -27,15 +29,14 @@
 	let nuevoTitulo = $state('');
 	let nuevaDescripcion = $state('');
 	let nuevoEnlace = $state('');
+	let nuevoArchivo = $state(null);
 
 	// Pestaña activa: 'resumen' o 'avances'
 	let pestana = $state('resumen');
 
 	// Formulario de carga de documento (modal)
 	let avanceElegido = $state(null); // avance cuyo formulario está abierto
-	let formNombre = $state('');
-	let formEnlace = $state('');
-	let formTamanoMB = $state('');
+	let archivoElegido = $state(null);
 	let guardando = $state(false);
 	let errorSubida = $state('');
 
@@ -98,6 +99,7 @@
 		nuevoTitulo = '';
 		nuevaDescripcion = '';
 		nuevoEnlace = '';
+		nuevoArchivo = null;
 		errorNuevoAvance = '';
 		crearAvanceAbierto = true;
 	}
@@ -108,18 +110,27 @@
 
 	async function guardarNuevoAvance(e) {
 		e.preventDefault();
+		if (guardandoNuevoAvance) return;
 		errorNuevoAvance = '';
 		mensajeNuevoAvance = '';
 
 		const titulo = nuevoTitulo.trim();
 		const descripcion = nuevaDescripcion.trim();
-		const enlace = nuevoEnlace.trim();
+		const enlace = nuevoArchivo ? '' : nuevoEnlace.trim();
 		if (!trabajoGrado || !sesion.usuario?.id_user || !titulo || !descripcion) {
 			errorNuevoAvance = 'Completa el título y la descripción del avance.';
 			return;
 		}
 		if (enlace && !/^https?:\/\//i.test(enlace)) {
 			errorNuevoAvance = 'El enlace debe comenzar con http:// o https://.';
+			return;
+		}
+		if (nuevoArchivo && !nuevoArchivo.name.toLowerCase().endsWith('.pdf')) {
+			errorNuevoAvance = 'Selecciona un archivo PDF.';
+			return;
+		}
+		if (nuevoArchivo?.size > 10 * 1024 * 1024) {
+			errorNuevoAvance = 'El PDF debe pesar como máximo 10 MB.';
 			return;
 		}
 
@@ -136,19 +147,23 @@
 
 		guardandoNuevoAvance = true;
 		try {
-			const avanceCreado = await crearAvance({
-				id_trabajo_grado: Number(trabajoGrado.id_trabajo_grado),
-				subido_por: Number(sesion.usuario.id_user),
-				titulo,
-				descripcion,
-				dictamen: 'en revisión',
-				fecha_entrega: fechaEntrega,
-				nombre_archivo: nombreArchivo,
-				ruta_archivo: enlace || null,
-				numero_version: 1,
-				tamano_bytes: 0,
-				estado: true
-			});
+			const avanceCreado = nuevoArchivo
+				? await crearAvanceConArchivo(trabajoGrado.id_trabajo_grado, {
+					titulo, descripcion, archivo: nuevoArchivo
+				})
+				: await crearAvance({
+					id_trabajo_grado: Number(trabajoGrado.id_trabajo_grado),
+					subido_por: Number(sesion.usuario.id_user),
+					titulo,
+					descripcion,
+					dictamen: 'en revisión',
+					fecha_entrega: fechaEntrega,
+					nombre_archivo: nombreArchivo,
+					ruta_archivo: enlace || null,
+					numero_version: 1,
+					tamano_bytes: 0,
+					estado: true
+				});
 
 			crearAvanceAbierto = false;
 			mensajeNuevoAvance = 'Tu avance se registró y quedó enviado para revisión.';
@@ -156,7 +171,7 @@
 				const lista = await getAvancePorTrabajo(trabajoGrado.id_trabajo_grado);
 				avances = Array.isArray(lista) ? lista : lista?.data ?? lista?.items ?? [];
 			} catch (e) {
-				if (avanceCreado && typeof avanceCreado === 'object') avances = [...avances, avanceCreado];
+				if (avanceCreado?.titulo) avances = [...avances, avanceCreado];
 				console.warn('El avance se creó, pero no fue posible actualizar el listado:', e);
 			}
 		} catch (err) {
@@ -171,58 +186,39 @@
 	}
 
 	// Solo se puede cargar si está pendiente, vencido, rechazado o en progreso
-	const puedeCargar = (a) => ['Pendiente', 'Vencido', 'Rechazado', 'En progreso', 'Entregado'].includes(textoEstado(a));
+	const puedeCargar = (a) => a.estado && !esAprobado(a);
 
 	function abrirModal(a) {
 		avanceElegido = a;
-		formNombre = '';
-		formEnlace = '';
-		formTamanoMB = '';
+		archivoElegido = null;
 		errorSubida = '';
+		mensajeNuevoAvance = '';
 	}
 
 	function cerrarModal() {
 		if (!guardando) avanceElegido = null;
 	}
 
-	// Si el estudiante elige un archivo, se rellenan nombre y tamaño (el archivo en sí no se envía)
-	function alElegirArchivo(e) {
-		const f = e.target.files[0];
-		if (!f) return;
-		formNombre = f.name;
-		formTamanoMB = (f.size / 1024 / 1024).toFixed(2);
-	}
-
 	async function enviar(e) {
 		e.preventDefault();
+		if (guardando || !avanceElegido) return;
 		const base = avanceElegido;
-		const nombre = formNombre.trim();
-		if (!nombre) {
-			errorSubida = 'Escribe el nombre del documento.';
+		if (!archivoElegido || !archivoElegido.name.toLowerCase().endsWith('.pdf')) {
+			errorSubida = 'Selecciona un archivo PDF.';
 			return;
 		}
-
-		const mb = parseFloat(formTamanoMB);
-		const cambios = {
-			nombre_archivo: nombre,
-			ruta_archivo: formEnlace.trim() || `https://ejemplo.com/archivos/${encodeURIComponent(nombre)}`,
-			tamano_bytes: Number.isFinite(mb) && mb > 0 ? Math.round(mb * 1024 * 1024) : 0,
-			fecha_entrega: new Date().toISOString(),
-			numero_version: (base.numero_version ?? 0) + 1,
-			dictamen: null
-		};
+		if (archivoElegido.size > 10 * 1024 * 1024) {
+			errorSubida = 'El PDF debe pesar como máximo 10 MB.';
+			return;
+		}
 
 		guardando = true;
 		errorSubida = '';
 		try {
-			await actualizarAvance(base.id_avance, {
-				...base,
-				...cambios,
-				id_trabajo_grado: trabajoGrado.id_trabajo_grado,
-				subido_por: sesion.usuario.id_user
-			});
+			const cambios = await subirEntregable(base.id_avance, archivoElegido);
 			avances = avances.map((x) => (x.id_avance === base.id_avance ? { ...x, ...cambios } : x));
 			avanceElegido = null;
+			mensajeNuevoAvance = 'El PDF quedó guardado y enviado para revisión.';
 		} catch (err) {
 			errorSubida = err.message;
 		} finally {
@@ -453,26 +449,6 @@
 			</ul>
 
 			{#if pestana === 'resumen'}
-			<!-- Repositorio (datos de prueba) -->
-			<div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-				<h3 class="h6 fw-bold text-dark mb-3 d-flex align-items-center gap-2">
-					<i class="bi bi-github text-primary fs-5"></i>Repositorio y control de versiones
-				</h3>
-
-				<div class="bg-light p-3 rounded-3 d-flex flex-wrap align-items-center justify-content-between gap-3 border">
-					<div class="bg-white p-2 rounded-2 border text-dark">
-						<i class="bi bi-code-slash fs-5"></i>
-					</div>
-					<div>
-						<span class="fw-semibold text-dark d-block small">github.com/universidad/tesis-resnet-denseNet</span>
-						<span class="extra-small text-muted">Último commit: hace 2 días (Rama main)</span>
-					</div>
-					<a href="https://github.com" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-white border shadow-sm fw-medium d-flex align-items-center gap-1">
-						Abrir Repositorio <i class="bi bi-box-arrow-up-right extra-small ms-1"></i>
-					</a>
-				</div>
-			</div>
-
 			<!-- Equipo vinculado -->
 			<div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
 				<h3 class="h6 fw-bold text-dark mb-3 d-flex align-items-center gap-2">
@@ -661,9 +637,7 @@
 										<td class="text-muted extra-small">{formatearTamano(doc.tamano_bytes) || '-'}</td>
 										<td><span class="badge border extra-small {claseEstado(doc)}">{textoEstado(doc)}</span></td>
 										<td class="text-end">
-											<a href={doc.ruta_archivo} target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border text-muted" aria-label="Descargar {doc.nombre_archivo}">
-												<i class="bi bi-download"></i>
-											</a>
+											<DescargaEntregable avance={doc} clase="btn btn-sm btn-light border text-muted" />
 										</td>
 									</tr>
 								{:else}
@@ -698,9 +672,16 @@
 									<textarea id="nuevo-avance-descripcion" class="form-control" rows="4" bind:value={nuevaDescripcion} required disabled={guardandoNuevoAvance}></textarea>
 								</div>
 								<div class="mb-3">
+									<label class="form-label small fw-semibold" for="nuevo-avance-archivo">Archivo PDF (opcional)</label>
+									<input id="nuevo-avance-archivo" type="file" class="form-control" accept=".pdf,application/pdf"
+										disabled={guardandoNuevoAvance}
+										onchange={(evento) => (nuevoArchivo = evento.currentTarget.files[0] ?? null)} />
+									<div class="form-text extra-small">Tamaño máximo de 10 MB.</div>
+								</div>
+								<div>
 									<label class="form-label small fw-semibold" for="nuevo-avance-enlace">Enlace del documento (opcional)</label>
-									<input id="nuevo-avance-enlace" type="url" class="form-control" placeholder="https://..." bind:value={nuevoEnlace} disabled={guardandoNuevoAvance} />
-									<div class="form-text extra-small">La aplicación registra el enlace; no carga archivos directamente.</div>
+									<input id="nuevo-avance-enlace" type="url" class="form-control" placeholder="https://..."
+										bind:value={nuevoEnlace} disabled={guardandoNuevoAvance || Boolean(nuevoArchivo)} />
 								</div>
 								{#if errorNuevoAvance}
 									<div class="alert alert-danger py-2 small mb-0" role="alert">{errorNuevoAvance}</div>
@@ -734,25 +715,11 @@
 
 							<div class="modal-body">
 								<div class="mb-3">
-									<label class="form-label small fw-semibold" for="f-archivo">Elegir archivo (opcional)</label>
-									<input id="f-archivo" type="file" class="form-control form-control-sm" onchange={alElegirArchivo} />
-									<div class="form-text extra-small">Solo rellena el nombre y el tamaño; el archivo no se sube.</div>
-								</div>
-
-								<div class="mb-3">
-									<label class="form-label small fw-semibold" for="f-nombre">Nombre del documento *</label>
-									<input id="f-nombre" type="text" class="form-control form-control-sm" placeholder="Informe_Avance_v1.pdf" bind:value={formNombre} required />
-								</div>
-
-								<div class="row g-3">
-									<div class="col-12 col-sm-7">
-										<label class="form-label small fw-semibold" for="f-enlace">Enlace (opcional)</label>
-										<input id="f-enlace" type="text" class="form-control form-control-sm" placeholder="https://..." bind:value={formEnlace} />
-									</div>
-									<div class="col-12 col-sm-5">
-										<label class="form-label small fw-semibold" for="f-tamano">Tamaño en MB (opcional)</label>
-										<input id="f-tamano" type="number" step="0.01" min="0" class="form-control form-control-sm" placeholder="2.5" bind:value={formTamanoMB} />
-									</div>
+									<label class="form-label small fw-semibold" for="f-archivo">Archivo PDF</label>
+									<input id="f-archivo" type="file" class="form-control form-control-sm"
+										accept=".pdf,application/pdf" required disabled={guardando}
+										onchange={(evento) => (archivoElegido = evento.currentTarget.files[0] ?? null)} />
+									<div class="form-text extra-small">Tamaño máximo de 10 MB.</div>
 								</div>
 
 								{#if errorSubida}

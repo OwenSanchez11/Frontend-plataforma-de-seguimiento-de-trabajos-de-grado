@@ -31,6 +31,24 @@
 export const getTrabajos = () => get('/trabajo_grado/');
 export const getTrabajoPorId = (id) => get(`/trabajo_grado/${id}/`);
 export const getCarreras = () => get('/carreras/');
+export const getCarrerasReporte = () => get('/reportes/trabajos-grado/carreras');
+export const visualizarReporteTrabajos = (filtros) =>
+	get(`/reportes/trabajos-grado/vista-previa?${new URLSearchParams(filtros)}`);
+
+export async function descargarReporteTrabajos(filtros) {
+	const query = new URLSearchParams(filtros);
+	const res = await fetch(`${PUBLIC_API_URL}/reportes/trabajos-grado/pdf?${query}`, {
+		headers: headersAutenticados()
+	});
+	if (!res.ok) {
+		const error = await res.json().catch(() => null);
+		throw new Error(typeof error?.detail === 'string' ? error.detail : 'No se pudo descargar el PDF');
+	}
+	return res.blob();
+}
+
+export const enviarReporteTrabajos = (filtros) =>
+	request('/reportes/trabajos-grado/envios', 'POST', filtros);
 export const getUsuarios = () => get('/usuarios/');
 export const getEquiposTrabajo = () => get('/equipo-trabajo/');
 export const getRoles = () => get('/rol/');
@@ -39,6 +57,30 @@ export const getModulos = () => get("/modulos/");
 export const getModulosRol = () => get("/modulo_rol/");
 export const getTrabajoPorEstudiante = (id_user) => get(`/equipo-trabajo/estudiante/${id_user}`);
 export const getAvancePorTrabajo = (id_trabajo_grado) => get(`/avances/trabajo/${id_trabajo_grado}`);
+export const getDescargaEntregable = (idAvance) => get(`/avances/${idAvance}/archivo`);
+
+export function subirEntregable(idAvance, archivo) {
+	return enviarArchivoAvance(`/avances/${idAvance}/archivo`, { archivo });
+}
+
+export function crearAvanceConArchivo(idTrabajo, campos) {
+	return enviarArchivoAvance(`/avances/trabajo/${idTrabajo}/archivo`, campos);
+}
+
+async function enviarArchivoAvance(ruta, campos) {
+	const datos = new FormData();
+	Object.entries(campos).forEach(([nombre, valor]) => datos.append(nombre, valor));
+	const respuesta = await fetch(`${PUBLIC_API_URL}${ruta}`, {
+		method: 'POST',
+		headers: headersAutenticados(),
+		body: datos
+	});
+	const contenido = await respuesta.json().catch(() => null);
+	if (!respuesta.ok) {
+		throw new Error(typeof contenido?.detail === 'string' ? contenido.detail : 'No se pudo subir el PDF.');
+	}
+	return contenido;
+}
 export const getRetroalimentacionPorTrabajo = (id_trabajo_grado) => get(`/retroalimentaciones/trabajo/${id_trabajo_grado}`) 
 export const getTrabajoPorDocente = (id_user) => get(`/equipo-trabajo/docente/${id_user}`);
 export const getEquipoTrabajoPorId = (id_equipo) => get(`/equipo-trabajo/${id_equipo}`)

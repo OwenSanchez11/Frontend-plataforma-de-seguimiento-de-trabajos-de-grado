@@ -1,4 +1,5 @@
 <script>
+	import DescargaEntregable from '$lib/components/DescargaEntregable.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { getAvances, getTrabajoPorDocente } from '$lib/api';
@@ -127,7 +128,7 @@
 									<td class="px-3"><strong>{avance.titulo}</strong><div class="small text-muted">v{avance.numero_version} · {avance.descripcion || 'Sin descripcion'}</div></td>
 									<td>{avance.estado || '-'}</td>
 									<td class="small">Entrega: {avance.fecha_entrega || '-'}<br />Limite: {avance.fecha_limite || '-'}</td>
-									<td>{#if avance.ruta_archivo}<a href={avance.ruta_archivo} target="_blank" rel="noopener noreferrer">{avance.nombre_archivo || 'Abrir archivo'}</a>{:else}Sin archivo{/if}</td>
+									<td><DescargaEntregable {avance} texto={avance.nombre_archivo || 'Abrir archivo'} /></td>
 									<td>{avance.dictamen || 'Sin dictamen'}</td>
 								</tr>
 							{:else}

@@ -7,7 +7,6 @@
 	let esEstudiante = $derived(sesion.usuario?.rol === 'estudiante');
 	let esDocente = $derived(sesion.usuario?.rol === 'docente');
 	let menuAbierto = $state(false);
-	let busqueda = $state('');
 	let desconectando = $state(false);
 	let nombre = $derived(sesion.usuario?.nombre ?? '');
 
@@ -64,11 +63,6 @@
 		periodo: '2025-II'
 	};
 
-	function buscar(e) {
-		e.preventDefault();
-		if (!busqueda.trim()) return;
-		console.log('Buscando:', busqueda);
-	}
 </script>
 
 <header class="bg-white border-bottom sticky-top shadow-sm">
@@ -105,9 +99,9 @@
 	</div>
 
 	<div class="collapse navbar-collapse-custom border-top {menuAbierto ? 'show' : ''}" id="navbarContenido">
-		<div class="container-fluid px-3 px-md-4 py-2 d-flex flex-column flex-xl-row align-items-stretch align-items-xl-center justify-content-between gap-2">
+		<div class="container-fluid px-3 px-md-4 py-2">
 
-			<ul class="nav flex-column flex-xl-row gap-1 mb-0 flex-grow-1">
+			<ul class="nav flex-column flex-xl-row align-items-xl-center gap-1 mb-0">
 				{#each menu as item}
 					<li class="nav-item">
 						<a
@@ -137,20 +131,6 @@
 
 			</ul>
 
-			<form class="d-flex flex-shrink-0" style="max-width: 280px; width: 100%;" onsubmit={buscar}>
-				<div class="input-group input-group-sm">
-					<span class="input-group-text bg-light border-end-0 text-muted">
-						<i class="bi bi-search"></i>
-					</span>
-					<input
-						type="search"
-						class="form-control border-start-0 bg-light extra-small"
-						placeholder="Buscar..."
-						bind:value={busqueda}
-						aria-label="Buscar"
-					/>
-				</div>
-			</form>
 		</div>
 	</div>
 </header>

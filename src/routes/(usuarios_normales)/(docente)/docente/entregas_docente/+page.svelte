@@ -3,6 +3,7 @@
   import { sesion } from '$lib/sesion.svelte.js';
   import { editarAvance, getAvances, getTrabajoPorDocente, getUsuarios } from '$lib/api.js';
   import DataTableWrapper from '$lib/components/DataTableWrapper.svelte';
+  import DescargaEntregable from '$lib/components/DescargaEntregable.svelte';
 
   let avances = $state([]);
   const ESTADOS = ['Pendiente', 'En revisión', 'Aprobado', 'Requiere ajustes'];
@@ -243,7 +244,7 @@
           <p class="mb-1 text-muted small">Archivo</p>
           <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-4">
             <span>📄 {seleccionado.nombre_archivo} <small class="text-muted">({formatearTamano(seleccionado.tamano_bytes)})</small></span>
-            <button class="btn btn-sm btn-outline-secondary" disabled={!seleccionado.fecha_entrega}>Descargar</button>
+            <DescargaEntregable avance={seleccionado} />
           </div>
 
           {#if error}<div class="alert alert-danger" role="alert">{error}</div>{/if}

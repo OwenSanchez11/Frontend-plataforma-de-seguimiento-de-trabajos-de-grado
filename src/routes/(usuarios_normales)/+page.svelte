@@ -71,7 +71,7 @@
 
 	/* ---------- Estudiante ---------- */
 	let aprobados = $derived(avances.filter(esAprobado).length);
-	let porcentaje = $derived(avances.length ? Math.round((aprobados / avances.length) * 100) : 0);
+	let entregados = $derived(avances.filter((avance) => avance.fecha_entrega).length);
 	let pendientes = $derived(avances.filter(esPendiente).sort(porFechaLimite));
 	let proxima = $derived(pendientes[0] ?? null);
 	let desglose = $derived([
@@ -117,7 +117,11 @@
 					}
 				]
 			: [
-					{ etiqueta: 'Avance global', valor: v(`${porcentaje}%`), porcentaje: cargando ? 0 : porcentaje },
+					{
+						etiqueta: 'Avances entregados',
+						valor: error ? '—' : v(entregados),
+						icono: 'bi-cloud-check'
+					},
 					{ etiqueta: 'Avances aprobados', valor: v(`${aprobados} de ${avances.length}`) },
 					{ etiqueta: 'Próxima entrega', valor: v(proxima ? textoDias(dias(proxima.limite)) : 'Sin pendientes') }
 				]

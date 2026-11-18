@@ -5,7 +5,6 @@
 	import logoIcon from '../../../assets/icon-only.png';
 
 	let menuAbierto = $state(false);
-	let busqueda = $state('');
 	let desconectando = $state(false);
 
 	function toggleMenu() {
@@ -33,6 +32,9 @@
         { id: 'roles', name: 'Asignación de equipo', icon: 'bi-journal-text', href: '/coordinador/roles' },
         { id: 'trabajos-grado', name: 'Trabajos de Grado', icon: 'bi-folder2-open', href: '/coordinador/trabajoGrado' },
         { id: 'evaluaciones', name: 'Evaluaciones', icon: 'bi-book', href: '/coordinador/evaluaciones' },
+		{ id: 'tablero-datos', name: 'Tablero de datos', icon: 'bi-bar-chart-line', href: '/coordinador/tablero-datos' },
+		{ id: 'reportes', name: 'Reportes', icon: 'bi-file-earmark-pdf', href: '/coordinador/reportes' }
+
     ];
 
 
@@ -45,12 +47,6 @@
 	let iniciales = $derived(
 		nombre.split(/\s+/).filter(Boolean).slice(0, 2).map(parte => parte[0]).join('').toUpperCase()
 	);
-
-	function buscar(e) {
-		e.preventDefault();
-		if (!busqueda.trim()) return;
-		console.log('Buscando:', busqueda);
-	}
 
 </script>
 
@@ -81,7 +77,8 @@
 				type="button"
 				onclick={toggleMenu}
 				aria-expanded={menuAbierto}
-				aria-label="Toggle navigation"
+				aria-controls="navbarContenido"
+				aria-label="Menú de navegación"
 			>
 				<i class="bi bi-list"></i>
 			</button>
@@ -89,9 +86,9 @@
 	</div>
 
 	<div class="collapse navbar-collapse-custom border-top {menuAbierto ? 'show' : ''}" id="navbarContenido">
-		<div class="container-fluid px-3 px-md-4 py-2 d-flex flex-column flex-xl-row align-items-stretch align-items-xl-center justify-content-between gap-2">
+		<nav class="container-fluid px-3 px-md-4 py-2" aria-label="Navegación del coordinador">
 
-			<ul class="nav flex-column flex-xl-row gap-1 mb-0 flex-grow-1">
+			<ul class="nav flex-column flex-xl-row align-items-xl-center gap-1 mb-0">
 				{#each menuPrincipal as item}
 					<li class="nav-item">
 						<a
@@ -105,17 +102,10 @@
 					</li>
 				{/each}
 
-				<li class="nav-item d-none d-xl-block mx-1 my-auto">
-					<div class="vr h-100 opacity-25"></div>
-				</li>
-				<li class="nav-item d-xl-none mt-2 pt-2 border-top">
-					<span class="extra-small text-muted fw-bold text-uppercase px-2 d-block mb-1">Evaluaciones Docentes</span>
-				</li>
-
-				<li class="nav-item ms-xl-auto">
+				<li class="nav-item nav-salida flex-shrink-0 ms-xl-auto">
 					<button
 						type="button"
-						class="nav-link px-2.5 py-2 rounded-3 extra-small fw-semibold d-flex align-items-center gap-2 transition-all text-danger border-0 bg-transparent w-100"
+						class="nav-link px-2.5 py-2 rounded-3 extra-small fw-semibold d-flex align-items-center gap-2 transition-all text-danger border-0 bg-transparent w-100 text-nowrap"
 						onclick={desconectar}
 						disabled={desconectando}
 					>
@@ -123,26 +113,8 @@
 						<span>Cerrar sesión</span>
 					</button>
 				</li>
-
-
-
 			</ul>
-
-			<form class="d-flex flex-shrink-0" style="max-width: 280px; width: 100%;" onsubmit={buscar}>
-				<div class="input-group input-group-sm">
-					<span class="input-group-text bg-light border-end-0 text-muted">
-						<i class="bi bi-search"></i>
-					</span>
-					<input
-						type="search"
-						class="form-control border-start-0 bg-light extra-small"
-						placeholder="Buscar..."
-						bind:value={busqueda}
-						aria-label="Buscar"
-					/>
-				</div>
-			</form>
-		</div>
+		</nav>
 	</div>
 </header>
 
@@ -163,11 +135,12 @@
 		background-color: #f8f9fa;
 		color: #0d6efd !important;
 	}
-	.profile-hover:hover {
-		background-color: #f8f9fa;
-	}
-	.profile-hover:hover span.text-dark {
-		color: #0d6efd !important;
+	@media (max-width: 1199.98px) {
+		.nav-salida {
+			border-top: 1px solid var(--bs-border-color);
+			margin-top: 0.25rem;
+			padding-top: 0.25rem;
+		}
 	}
 	.transition-all {
 		transition: all 0.2s ease-in-out;

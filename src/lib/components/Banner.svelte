@@ -24,7 +24,10 @@
       {#each stats as s}
         <div class="col-6 col-lg p-3 border-top border-light border-opacity-10">
           <small class="text-uppercase opacity-75">{s.etiqueta}</small>
-          <div class="fs-2 fw-bold">{s.valor}</div>
+          <div class="fs-2 fw-bold d-flex align-items-center gap-2">
+            {#if s.icono}<i class="bi {s.icono} fs-5 text-warning" aria-hidden="true"></i>{/if}
+            {s.valor}
+          </div>
           {#if s.porcentaje != null}
             <div class="progress" style="height:4px">
               <div class="progress-bar" style="width:{s.porcentaje}%; background:{s.color ?? '#f59e0b'}"></div>

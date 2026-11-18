@@ -32,6 +32,8 @@
 		{ id: 'trabajos-grado', name: 'Trabajos de Grado', icon: 'bi-folder2-open', href: '/admin/trabajos-grado' },
 		{ id: 'facultades', name: 'Facultades & Carreras', icon: 'bi-building', href: '/admin/facultades-carreras' },
 		{ id: 'evaluaciones', name: 'Evaluaciones', icon: 'bi-clipboard-check', href: '/admin/evaluaciones' },
+		{ id: 'tablero-datos', name: 'Tablero de datos', icon: 'bi-bar-chart-line', href: '/admin/tablero-datos' },
+		{ id: 'reportes', name: 'Reportes', icon: 'bi-file-earmark-pdf', href: '/admin/reportes' }
 	];
 
 	let nombre = $derived([sesion.usuario?.nombre, sesion.usuario?.apellido].filter(Boolean).join(' ') || sesion.usuario?.username || sesion.usuario?.email || 'Administrador');
