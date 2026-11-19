@@ -4,7 +4,7 @@
   import { crearRetroalimentacion, editarRetroalimentacion, getAvances, getRetroalimentacionPorTrabajo, getTrabajoPorDocente, getUsuarios } from '$lib/api.js';
   import { sesion } from '$lib/sesion.svelte.js';
   let retroalimentaciones = $state([]);
-    let avancesDisponibles = $state([]);
+  let avancesDisponibles = $state([]);
 
   const ESTADOS = ['Pendiente', 'Atendida'];
 
@@ -20,7 +20,21 @@
   let editando = $state(null); // retroalimentación en edición (null = nueva)
   let respondiendoA = $state(null);
   let formAvance = $state('');
+  let busquedaAvance = $state('');
   let formComentario = $state('');
+
+  const normalizarBusqueda = (texto) =>
+    texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+
+  let avancesFiltrados = $derived.by(() => {
+    const consulta = normalizarBusqueda(busquedaAvance);
+    return avancesDisponibles.filter((avance) =>
+      [avance.titulo, avance.trabajo, avance.estudiante].some((texto) =>
+        normalizarBusqueda(texto).includes(consulta)
+      )
+    );
+  });
+  let avanceElegido = $derived(avancesDisponibles.find((avance) => String(avance.id_avance) === formAvance));
 
   function obtenerLista(respuesta) {
     if (Array.isArray(respuesta)) return respuesta;
@@ -137,6 +151,7 @@
     editando = null;
     respondiendoA = null;
     formAvance = '';
+    busquedaAvance = '';
     formComentario = '';
     modalAbierto = true;
   }
@@ -272,7 +287,7 @@
 <!-- Modal crear / editar -->
 {#if modalAbierto}
   <div class="modal d-block" style="background: rgba(0,0,0,.5)" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">{editando ? 'Editar retroalimentación' : respondiendoA ? 'Responder retroalimentación' : 'Nueva retroalimentación'}</h5>
@@ -288,13 +303,32 @@
             </div>
           {/if}
           <div class="mb-3">
-            <label class="form-label" for="avance">Avance</label>
-            <select id="avance" class="form-select" bind:value={formAvance} disabled={!!editando || !!respondiendoA}>
-              <option value="">Selecciona un avance...</option>
-              {#each avancesDisponibles as a (a.id_avance)}
-                <option value={String(a.id_avance)}>{a.titulo} — {a.estudiante}</option>
-              {/each}
-            </select>
+            {#if editando || respondiendoA}
+              <div class="form-label">Avance</div>
+              <div class="form-control-plaintext py-0">{(editando ?? respondiendoA).avance}</div>
+            {:else}
+              <label class="form-label" for="buscar-avance">Buscar avance</label>
+              <input id="buscar-avance" type="search" class="form-control"
+                placeholder="Título, trabajo o estudiante" bind:value={busquedaAvance} />
+              <div class="list-group overflow-auto mt-2" style="max-height: 12rem">
+                {#each avancesFiltrados as avance (avance.id_avance)}
+                  {@const elegido = String(avance.id_avance) === formAvance}
+                  <button type="button" class="list-group-item list-group-item-action"
+                    class:active={elegido} aria-pressed={elegido}
+                    onclick={() => { formAvance = String(avance.id_avance); }}>
+                    <span class="d-block fw-semibold">{avance.titulo}</span>
+                    <small>{avance.trabajo} · {avance.estudiante}</small>
+                  </button>
+                {:else}
+                  <p class="list-group-item text-muted mb-0" role="status">
+                    {cargando ? 'Cargando avances…' : 'No se encontraron avances.'}
+                  </p>
+                {/each}
+              </div>
+              {#if avanceElegido}
+                <p class="form-text mb-0">Seleccionado: {avanceElegido.titulo} · {avanceElegido.trabajo} · {avanceElegido.estudiante}</p>
+              {/if}
+            {/if}
           </div>
           <div class="mb-2">
             <label class="form-label" for="comentario">Comentario</label>

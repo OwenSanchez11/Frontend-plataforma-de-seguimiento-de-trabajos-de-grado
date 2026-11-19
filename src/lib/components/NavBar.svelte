@@ -49,7 +49,7 @@
 	const menuDocente = [
 		{ id: 'equipos', name: 'equipos', icon: 'bi bi-people-fill', href: '/docente/equipo_trabajo' },
 		{ id: 'evaluaciones', name: 'Evaluaciones & trabajos asignados', icon: 'bi-book', href: '/docente/evaluaciones' },
-		{ id: 'avances', name: 'Avances & Entregas', icon: 'bi-bi-chat-left-text', href: '/docente/entregas_docente' },
+		{ id: 'avances', name: 'Avances & Entregas', icon: 'bi-folder2-open', href: '/docente/entregas_docente' },
 		{ id: 'retro-docente', name: 'Retroalimentaciones', icon: 'bi-chat-left-text', href: '/docente/retroalimentaciones_docente' },
 	];
 

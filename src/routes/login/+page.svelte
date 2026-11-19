@@ -139,10 +139,6 @@
                     <label for="password" class="form-label small fw-bold mb-0">
                         Contraseña
                     </label>
-
-                    <a href="/recuperar" class="text-decoration-none small fw-semibold">
-                        ¿Olvidaste tu contraseña?
-                    </a>
                 </div>
 
                 <div class="input-group">
@@ -172,22 +168,6 @@
                 </div>
             </div>
 
-            <div class="form-check mb-4">
-                <input
-                    type="checkbox"
-                    class="form-check-input"
-                    id="remember"
-                    bind:checked={recordar}
-                    disabled={cargandoLogin}
-                />
-
-                <label class="form-check-label small text-secondary lh-sm" for="remember">
-                    <strong class="text-dark d-block mb-1">
-                        Recordar sesión en este equipo institucional
-                    </strong>
-                    Desmarca esta opción si utilizas una estación de trabajo compartida en aulas o biblioteca.
-                </label>
-            </div>
 
             <button
                 type="submit"

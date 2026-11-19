@@ -30,13 +30,15 @@
 	}
 
 	onMount(async () => {
-		if (new URLSearchParams(window.location.search).get('vista') === 'trabajos') {
+		const parametros = new URLSearchParams(window.location.search);
+		const idAvance = parametros.get('avance');
+		if (parametros.get('vista') === 'trabajos') {
 			pestanaActiva = 'directorio';
 		}
 
 		try {
 			const usuario = sesion.usuario;
-			if (!usuario || usuario.rol !== 'docente') {
+			if (usuario?.rol !== 'docente' && usuario?.rol !== 'profesor') {
 				error = 'Esta página está disponible únicamente para docentes.';
 				return;
 			}
@@ -68,8 +70,13 @@
 				};
 			});
 
-			trabajoSeleccionado = trabajosAsignados[0] ?? null;
-			avanceSeleccionado = String(trabajoSeleccionado?.avances?.at(-1)?.id_avance ?? '');
+			const trabajoDelAvance = trabajosAsignados.find((trabajo) =>
+				trabajo.avances.some((avance) => String(avance.id_avance) === idAvance)
+			);
+			trabajoSeleccionado = trabajoDelAvance ?? trabajosAsignados[0] ?? null;
+			avanceSeleccionado = trabajoDelAvance
+				? idAvance
+				: String(trabajoSeleccionado?.avances?.at(-1)?.id_avance ?? '');
 
 		} catch (e) {
 			error = e.message || 'No fue posible cargar los trabajos asignados.';

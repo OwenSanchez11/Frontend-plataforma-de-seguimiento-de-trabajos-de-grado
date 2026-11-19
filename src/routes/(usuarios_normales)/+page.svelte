@@ -6,7 +6,8 @@
 		getAvancePorTrabajo,
 		getTrabajoPorEstudiante,
 		getTrabajoPorDocente,
-		getCarreras
+		getCarreras,
+		getEvaluaciones
 	} from '$lib/api';
 	import { esAprobado } from '$lib/avances';
 	import { inicioDelDia, parsearFechaLocal } from '$lib/fechas';
@@ -14,7 +15,6 @@
 
 	const rutas = {
 		docente: {
-			evaluaciones: '/docente/equipo_trabajo',
 			avances: '/docente/entregas_docente',
 			retroalimentaciones: '/docente/retroalimentaciones',
 			evaluaciones: '/docente/evaluaciones',
@@ -37,6 +37,7 @@
 	let trabajo = $state(null); 
 	let avances = $state([]); 
 	let asignados = $state([]); 
+	let evaluaciones = $state([]);
 
 	let usuario = $derived(sesion.usuario);
 	let esEstudiante = $derived(usuario?.rol === 'estudiante');
@@ -82,21 +83,39 @@
 	]);
 
 	/* ---------- Profesor ---------- */
-	// "Por revisar" = avances con documento entregado y sin dictamen. Cambia el criterio si el tuyo es otro.
+	const dictamenesPendientes = new Set(['', 'pendiente', 'en revisión']);
+	const veredictosAprobados = new Set(['aprobado', 'aprobado con observaciones']);
+	const tieneDictamenPendiente = (avance) => dictamenesPendientes.has(dictamenDe(avance).trim());
+	let avancesEvaluados = $derived(new Set(evaluaciones.map((ev) => String(ev.id_avance))));
+	let avancesAprobadosPorEvaluacion = $derived(new Set(
+		evaluaciones
+			.filter((ev) => veredictosAprobados.has(String(ev.veredicto ?? '').trim().toLowerCase()))
+			.map((ev) => String(ev.id_avance))
+	));
+	const esAprobadoDocente = (avance) =>
+		esAprobado(avance) ||
+		(tieneDictamenPendiente(avance) && avancesAprobadosPorEvaluacion.has(String(avance.id_avance)));
 	let porRevisar = $derived(
 		asignados
 			.flatMap((x) =>
-				x.avances.filter((a) => a.fecha_entrega && !dictamenDe(a)).map((a) => ({ ...a, trabajo: x.trabajo }))
+				x.avances
+					.filter((a) =>
+						a.fecha_entrega &&
+						tieneDictamenPendiente(a) &&
+						!avancesEvaluados.has(String(a.id_avance))
+					)
+					.map((a) => ({ ...a, trabajo: x.trabajo }))
 			)
 			.sort((a, b) => String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)))
 	);
 	let resumenDocente = $derived(
 		asignados.map((x) => {
-			const aprob = x.avances.filter(esAprobado).length;
+			const aprob = x.avances.filter(esAprobadoDocente).length;
 			return {
 				trabajo: x.trabajo,
 				porcentaje: x.avances.length ? Math.round((aprob / x.avances.length) * 100) : 0,
-				prox: x.avances.filter(esPendiente).sort(porFechaLimite)[0] ?? null
+				prox: x.avances.filter((avance) => esPendiente(avance) && !esAprobadoDocente(avance))
+					.sort(porFechaLimite)[0] ?? null
 			};
 		})
 	);
@@ -169,7 +188,7 @@
 					sinTrabajo = true;
 					return;
 				}
-				asignados = await Promise.all(
+				const cargarAsignados = Promise.all(
 					lista.map(async (item) => {
 						const t = item.trabajo ?? item;
 						try {
@@ -179,6 +198,15 @@
 						}
 					})
 				);
+				const cargarEvaluaciones = getEvaluaciones().then((respuesta) => {
+					const listaEvaluaciones = Array.isArray(respuesta)
+						? respuesta
+						: respuesta?.data ?? respuesta?.items ?? respuesta?.evaluaciones ?? [];
+					evaluaciones = listaEvaluaciones.filter((ev) => ev.estado !== false && ev.id_avance != null);
+				}).catch((e) => {
+					if (e.status !== 404) error = 'No fue posible verificar las calificaciones de las entregas.';
+				});
+				[asignados] = await Promise.all([cargarAsignados, cargarEvaluaciones]);
 			}
 		} catch (e) {
 			if (e.status === 404) sinTrabajo = true;
@@ -356,7 +384,7 @@
 													{a.trabajo.titulo ?? 'Trabajo de grado'} · entregado el {formatoFecha(parsearFechaLocal(a.fecha_entrega))}
 												</div>
 											</div>
-											<a class="btn btn-sm btn-outline-primary flex-none" href={rutas.docente.evaluaciones}>Revisar</a>
+											<a class="btn btn-sm btn-outline-primary flex-none" href={`${rutas.docente.evaluaciones}?avance=${encodeURIComponent(a.id_avance)}`}>Revisar</a>
 										</li>
 									{/each}
 								</ul>

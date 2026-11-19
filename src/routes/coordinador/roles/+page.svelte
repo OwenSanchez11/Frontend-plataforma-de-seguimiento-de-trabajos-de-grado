@@ -22,6 +22,7 @@
     let equiposTrabajo = $state([]);
 
     let trabajoSeleccionadoId = $state('');
+    let busquedaTrabajo = $state('');
 
     let profesoresSeleccionados = $state([]);
     let estudiantesSeleccionados = $state([]);
@@ -91,6 +92,17 @@
     let trabajoActual = $derived(
         obtenerTrabajo(trabajoSeleccionadoId)
     );
+
+    const normalizarBusquedaTrabajo = (valor) =>
+        String(valor ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+
+    let trabajosFiltrados = $derived.by(() => {
+        const consulta = normalizarBusquedaTrabajo(busquedaTrabajo);
+        return trabajos.filter(trabajo =>
+            normalizarBusquedaTrabajo(trabajo.titulo).includes(consulta) ||
+            String(trabajo.id_trabajo_grado).includes(consulta)
+        );
+    });
 
     let profesoresDisponibles = $derived(
         usuarios
@@ -566,26 +578,43 @@
                 Asignación de trabajo de grado
             </h5>
 
-            <label for="trabajoSeleccionado" class="form-label">
-                Seleccionar trabajo de grado
+            <label for="buscarTrabajo" class="form-label">
+                Buscar trabajo de grado
             </label>
 
-            <select
-                id="trabajoSeleccionado"
-                class="form-select"
-                value={trabajoSeleccionadoId}
-                onchange={event =>
-                    seleccionarTrabajo(event.currentTarget.value)}
+            <input
+                id="buscarTrabajo"
+                type="search"
+                class="form-control"
+                placeholder="Escribe el título del trabajo"
+                bind:value={busquedaTrabajo}
                 disabled={guardando}
-            >
-                <option value="">Selecciona un trabajo</option>
+            />
 
-                {#each trabajos as trabajo, indice (claveUnica(trabajo.id_trabajo_grado, indice))}
-                    <option value={String(trabajo.id_trabajo_grado)}>
-                        {trabajo.titulo}
-                    </option>
+            <div class="overflow-auto mt-3" style="max-height: 15rem">
+                <div class="row row-cols-1 row-cols-md-2 g-2 mx-0">
+                {#each trabajosFiltrados as trabajo, indice (claveUnica(trabajo.id_trabajo_grado, indice))}
+                    {@const idTrabajo = String(trabajo.id_trabajo_grado)}
+                    {@const seleccionado = trabajoSeleccionadoId === idTrabajo}
+                    <div class="col">
+                        <button
+                            type="button"
+                            class="btn btn-outline-primary w-100 h-100 text-start text-break"
+                            class:active={seleccionado}
+                            aria-pressed={seleccionado}
+                            onclick={() => { if (!seleccionado) seleccionarTrabajo(idTrabajo); }}
+                            disabled={guardando}
+                        >
+                            <span class="d-block fw-semibold">{trabajo.titulo}</span>
+                        </button>
+                    </div>
+                {:else}
+                    <p class="col text-muted mb-0" role="status">
+                        {trabajos.length ? 'No se encontraron trabajos con esa búsqueda.' : 'No hay trabajos de grado disponibles.'}
+                    </p>
                 {/each}
-            </select>
+                </div>
+            </div>
 
             {#if cargandoEquipo}
                 <p class="text-muted small mt-2 mb-0">Cargando asignaciones del trabajo...</p>
@@ -593,19 +622,15 @@
 
             {#if trabajoActual}
                 <div class="mt-3 p-3 bg-light rounded">
-                    <p class="mb-1">
-                        <strong>Título:</strong>
+                    <p class="mb-0">
+                        <strong>Trabajo seleccionado:</strong>
                         {trabajoActual.titulo}
                     </p>
-                    <p class="mb-0">
-                        <strong>ID del trabajo:</strong>
-                        {trabajoActual.id_trabajo_grado}
-                    </p>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                        onclick={() => seleccionarTrabajo('')} disabled={guardando}>
+                        Quitar selección
+                    </button>
                 </div>
-            {:else}
-                <p class="text-muted mt-3">
-                    No hay trabajos de grado disponibles.
-                </p>
             {/if}
         </div>
     </section>

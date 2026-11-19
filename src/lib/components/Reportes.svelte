@@ -1,6 +1,18 @@
 <script>
+	import { Capacitor, registerPlugin } from '@capacitor/core';
 	import { onMount } from 'svelte';
 	import { descargarReporteTrabajos, enviarReporteTrabajos, getCarrerasReporte, visualizarReporteTrabajos } from '$lib/api';
+
+	const guardarReporte = registerPlugin('GuardarReporte');
+
+	function leerPdfComoBase64(pdf) {
+		return new Promise((resolve, reject) => {
+			const lector = new FileReader();
+			lector.onload = () => resolve(lector.result.split(',')[1]);
+			lector.onerror = () => reject(new Error('No se pudo preparar el PDF para guardarlo.'));
+			lector.readAsDataURL(pdf);
+		});
+	}
 
 	let carreras = $state([]);
 	let aviso = $state('');
@@ -42,6 +54,12 @@
 				resultado = `El servicio de correo aceptó el envío a ${correo}.`;
 			} else {
 				const pdf = await descargarReporteTrabajos(seleccion);
+				if (Capacitor.getPlatform() === 'android') {
+					const contenido = await leerPdfComoBase64(pdf);
+					const { guardado } = await guardarReporte.guardar({ contenido });
+					if (guardado) resultado = 'Se guardó el PDF.';
+					return;
+				}
 				const url = URL.createObjectURL(pdf);
 				const enlace = document.createElement('a');
 				enlace.href = url;
